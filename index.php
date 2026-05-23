@@ -8,16 +8,16 @@ $current_time = date('Y-m-d H:i:s');
 
 try {
     // ------------------------------------------------------------------
-    // ส่วนที่ 1: ดึงข้อมูลกลุ่มสีและคำนวณคะแนน (แก้ไขให้ใช้ t.name และ t.color ตรงตามตารางจริง)
+    // ส่วนที่ 1: ดีกพิกัดตารางทีมสีตาม DBeaver (ใช้ team_name และ color)
     // ------------------------------------------------------------------
-    $sql_scores = "SELECT t.id, t.name, t.color,
+    $sql_scores = "SELECT t.id, t.team_name, t.color,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
             SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
             SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
             COALESCE(SUM(r.points), 0) as total_points
             FROM teams t
             LEFT JOIN match_results r ON t.id = r.team_id
-            GROUP BY t.id, t.name, t.color
+            GROUP BY t.id, t.team_name, t.color
             ORDER BY total_points DESC, gold_count DESC, t.id ASC";
             
     $stmt_scores = $pdo->query($sql_scores);
@@ -32,7 +32,7 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ใช้ match_name และ date_time ตามตารางจริง)
+    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ใช้ match_name และ date_time)
     // ------------------------------------------------------------------
     $sql_matches = "SELECT m.*, 
                     (SELECT COUNT(*) FROM match_results r WHERE r.match_id = m.id) as is_finished
@@ -81,14 +81,13 @@ try {
         }
     }
 
-    // เรียงกลุ่มที่ยังไม่แข่ง (Upcoming) ให้วันที่ใกล้จะถึงที่สุดอยู่บนสุด
+    // เรียงคิวกลุ่มที่ยังไม่แข่ง
     usort($upcoming_list, function($a, $b) {
         if (empty($a['computed_time'])) return 1;
         if (empty($b['computed_time'])) return -1;
         return strtotime($a['computed_time']) - strtotime($b['computed_time']);
     });
 
-    // ยุบรวม 2 กลุ่มเข้าด้วยกัน (Upcoming อยู่บน เสมอ และ Finished ต่อท้ายลงไปข้างล่าง)
     $calendar_timeline = array_merge($upcoming_list, $finished_list);
 
 } catch (\PDOException $e) {
@@ -111,47 +110,14 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background-color: #f2f2f7; /* iOS Light Background */
-            color: #1c1c1e;
-        }
-        .navbar {
-            background-color: rgba(28, 28, 30, 0.92) !important;
-            backdrop-filter: blur(20px);
-        }
-        .ios-card {
-            background: #ffffff;
-            border-radius: 16px !important;
-            border: none !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important;
-        }
-        .menu-card {
-            transition: all 0.25s ease-in-out;
-            cursor: pointer;
-        }
-        .menu-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
-        }
-        .rank-badge {
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-        .animate-pulse {
-            animation: pulse 1.5s infinite;
-        }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f2f2f7; color: #1c1c1e; }
+        .navbar { background-color: rgba(28, 28, 30, 0.92) !important; backdrop-filter: blur(20px); }
+        .ios-card { background: #ffffff; border-radius: 16px !important; border: none !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important; }
+        .menu-card { transition: all 0.25s ease-in-out; cursor: pointer; }
+        .menu-card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important; }
+        .rank-badge { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 600; font-size: 0.9rem; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .animate-pulse { animation: pulse 1.5s infinite; }
     </style>
 </head>
 <body>
@@ -165,31 +131,20 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item"><a class="nav-link active" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
-                
                 <?php if ($user_role == 'admin'): ?>
                     <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
                 <?php endif; ?>
-                
                 <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
                     <li class="nav-item"><a class="nav-link" href="manage_scores.php"><i class="fa-solid fa-star me-1"></i> บันทึกคะแนน</a></li>
                 <?php endif; ?>
             </ul>
-
             <ul class="navbar-nav ms-auto">
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <li class="nav-item">
-                        <a class="nav-link text-danger fw-bold" href="logout.php" onclick="return confirm('คุณต้องการออกจากระบบใช่หรือไม่?');">
-                            <i class="fa-solid fa-right-from-bracket me-1"></i> ออกจากระบบ
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link text-danger fw-bold" href="logout.php" onclick="return confirm('คุณต้องการออกจากระบบใช่หรือไม่?');"><i class="fa-solid fa-right-from-bracket me-1"></i> ออกจากระบบ</a></li>
                 <?php else: ?>
-                    <li class="nav-item">
-                        <a class="nav-link text-success fw-bold" href="login.php">
-                            <i class="fa-solid fa-right-to-bracket me-1"></i> เจ้าหน้าที่ล็อกอิน
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link text-success fw-bold" href="login.php"><i class="fa-solid fa-right-to-bracket me-1"></i> เจ้าหน้าที่ล็อกอิน</a></li>
                 <?php endif; ?>
             </ul>
         </div>
@@ -210,17 +165,11 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
             <p class="text-muted mb-0">
                 ยินดีต้อนรับ: <span class="badge bg-dark"><?php echo htmlspecialchars($user_name); ?></span> 
                 (สิทธิ์การใช้งาน: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)
-                
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <a href="edit_profile.php" class="btn btn-sm btn-outline-secondary py-1 px-2 ms-2" style="font-size: 0.8rem; border-radius: 6px;">
-                        <i class="fa-solid fa-user-pen me-1"></i> แก้ไขรหัสผ่าน
-                    </a>
+                    <a href="edit_profile.php" class="btn btn-sm btn-outline-secondary py-1 px-2 ms-2" style="font-size: 0.8rem; border-radius: 6px;"><i class="fa-solid fa-user-pen me-1"></i> แก้ไขรหัสผ่าน</a>
                 <?php endif; ?>
-
                 <?php if ($user_role == 'admin'): ?>
-                    <a href="manage_users.php" class="btn btn-sm btn-outline-danger py-1 px-2 ms-1" style="font-size: 0.8rem; border-radius: 6px;">
-                        <i class="fa-solid fa-users-gear me-1"></i> จัดการสมาชิกผู้ใช้
-                    </a>
+                    <a href="manage_users.php" class="btn btn-sm btn-outline-danger py-1 px-2 ms-1" style="font-size: 0.8rem; border-radius: 6px;"><i class="fa-solid fa-users-gear me-1"></i> จัดการสมาชิกผู้ใช้</a>
                 <?php endif; ?>
             </p>
         </div>
@@ -230,14 +179,12 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
         <div class="col-lg-7">
             <div class="card ios-card p-2">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold m-0"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัลประจำโรงเรียน</h5>
-                    </div>
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัลประจำโรงเรียน</h5>
                     
                     <?php if ($has_scores && !empty($teams_dashboard)): ?>
                         <div class="p-3 bg-warning bg-opacity-10 rounded-4 border-0 mb-3 text-center">
                             <h6 class="text-warning-emphasis fw-bold mb-1"><i class="fa-solid fa-crown me-1"></i> คะแนนรวมอันดับที่ 1 ในปัจจุบัน</h6>
-                            <h2 class="fw-bold text-dark mb-0"><?php echo htmlspecialchars($teams_dashboard[0]['name']); ?></h2>
+                            <h2 class="fw-bold text-dark mb-0"><?php echo htmlspecialchars($teams_dashboard[0]['team_name']); ?></h2>
                             <small class="text-muted">ผลรวม: <?php echo $teams_dashboard[0]['total_points']; ?> คะแนน</small>
                         </div>
                     <?php else: ?>
@@ -272,7 +219,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                         </td>
                                         <td class="fw-bold">
                                             <span class="badge me-2" style="background-color: <?php echo $team['color']; ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
-                                            <?php echo htmlspecialchars($team['name']); ?>
+                                            <?php echo htmlspecialchars($team['team_name']); ?>
                                         </td>
                                         <td class="text-center fw-bold text-warning"><?php echo $team['gold_count']; ?></td>
                                         <td class="text-center fw-bold text-secondary"><?php echo $team['silver_count']; ?></td>
@@ -291,7 +238,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
 
         <div class="col-lg-5">
             <div class="d-flex flex-column gap-2 h-100 justify-content-start">
-                
                 <?php if ($user_role == 'admin'): ?>
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
                     <div class="card-body d-flex align-items-center p-3">
@@ -332,7 +278,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                         <span>คุณกำลังเข้าชมในฐานะบุคคลทั่วไป (โหมดรับชมบอร์ด)<br>หากเป็นกรรมการกรุณากด <strong>"เจ้าหน้าที่ล็อกอิน"</strong> ด้านบน</span>
                     </div>
                 <?php endif; ?>
-
             </div>
         </div>
     </div>
