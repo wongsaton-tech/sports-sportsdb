@@ -295,7 +295,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                         <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                     </div>
                 </div>
-                <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
+                <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
                 <div class="card-body d-flex align-items-center p-3">
                     <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
                     <div><h6 class="mb-0 fw-bold text-dark">จัดการผู้ใช้งาน</h6><p class="mb-0 text-muted small">เพิ่ม/ลบ สิทธิ์เจ้าหน้าที่และกรรมการ</p></div>
@@ -326,6 +326,14 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                         <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนขึ้นบอร์ด</p></div>
                         <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                     </div>
+                </div>
+                <?php endif; ?>
+                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
+                <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
+                    <div><h6 class="mb-0 fw-bold text-dark">แก้ไขข้อมูลผู้ใช้</h6><p class="mb-0 text-muted small">แก้ไขข้อมูลการเข้าสู่ระบบ</p></div>
+                    <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                 </div>
                 <?php endif; ?>
                 <div class="col-lg-5">
