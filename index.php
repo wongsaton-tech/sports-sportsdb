@@ -2,56 +2,39 @@
 if (!isset($_SESSION)) { session_start(); }
 require_once 'db.php';
 
-// ดึงข้อมูลเบื้องต้น
-$user_role = isset($_SESSION['user_role']) ? $_SESSION['user_role'] : 'guest';
-$user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุคคลทั่วไป';
-
-// ดึงข้อมูลตารางการแข่งขัน
+// ดึงข้อมูลการแข่งขัน
 $matches = [];
 try {
     $stmt = $pdo->query("SELECT * FROM matches ORDER BY match_datetime ASC");
     $matches = $stmt->fetchAll();
 } catch (Exception $e) {}
 
-// ดึงข้อมูลทีมและคะแนน
+// ดึงข้อมูลทีม
 $teams = [];
 try {
     $stmt = $pdo->query("SELECT * FROM teams ORDER BY id ASC");
     $teams = $stmt->fetchAll();
 } catch (Exception $e) {}
+
+$user_role = isset($_SESSION['user_role']) ? $_SESSION['user_role'] : 'guest';
+$user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุคคลทั่วไป';
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SportsDay Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #f2f2f7; font-family: sans-serif; }
         .ios-card { background: #ffffff; border-radius: 16px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .navbar { background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
+        /* ป้องกัน Error เวลาเมาส์ชี้โดยใช้สีพื้นหลังปกติ */
+        .table-hover tbody tr:hover { background-color: #f8f9fa !important; }
     </style>
 </head>
 <body>
-
-<nav class="navbar navbar-expand-lg navbar-light sticky-top shadow-sm">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="index.php">🏆 SportsDay</a>
-        <div class="navbar-nav ms-auto">
-            <?php if (isset($_SESSION['user_id'])): ?>
-                <a href="logout.php" class="nav-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ</a>
-            <?php else: ?>
-                <a href="login.php" class="nav-link text-primary"><i class="fa-solid fa-right-to-bracket"></i> ล็อคอิน</a>
-            <?php endif; ?>
-        </div>
-    </div>
-</nav>
-
 <div class="container py-4">
     <div class="mb-4">
-        <h2 class="fw-bold">ยินดีต้อนรับสู่ระบบกีฬาสี</h2>
+        <h2 class="fw-bold">Dashboard</h2>
         <div class="card ios-card p-3 d-inline-block">
             ผู้ใช้งาน: <b><?php echo htmlspecialchars($user_name); ?></b> | 
             สิทธิ์: <span class="badge bg-dark"><?php echo strtoupper($user_role); ?></span>
@@ -59,32 +42,30 @@ try {
     </div>
 
     <div class="card ios-card p-4 mb-4">
-        <h5 class="fw-bold mb-3"><i class="fa-solid fa-calendar-days text-success me-2"></i> ตารางการแข่งขัน</h5>
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead><tr><th>รายการ</th><th>วันเวลา</th></tr></thead>
-                <tbody>
-                    <?php foreach ($matches as $m): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($m['match_name'] ?? $m['sport_name'] ?? '-'); ?></td>
-                        <td><?php echo htmlspecialchars($m['match_datetime'] ?? $m['date_time'] ?? '-'); ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
+        <h5 class="fw-bold mb-3">ตารางการแข่งขัน</h5>
+        <table class="table table-hover">
+            <thead><tr><th>รายการ</th><th>วันเวลา</th></tr></thead>
+            <tbody>
+                <?php foreach ($matches as $m): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($m['match_name'] ?? $m['sport_name'] ?? 'ไม่มีชื่อ'); ?></td>
+                    <td><?php echo htmlspecialchars($m['match_datetime'] ?? $m['date_time'] ?? '-'); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card ios-card p-4">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-medal text-warning me-2"></i> สรุปคะแนนทีมสี</h5>
+                <h5 class="fw-bold mb-3">สรุปคะแนนทีมสี</h5>
                 <table class="table">
                     <thead><tr><th>ทีมสี</th><th>คะแนน</th></tr></thead>
                     <tbody>
                         <?php foreach ($teams as $t): ?>
                         <tr>
-                            <td><span class="badge" style="background-color:<?php echo $t['color']; ?>;">&nbsp;</span> <?php echo htmlspecialchars($t['team_name']); ?></td>
+                            <td><span class="badge" style="background-color:<?php echo htmlspecialchars($t['color'] ?? '#8e8e93'); ?>;">&nbsp;</span> <?php echo htmlspecialchars($t['team_name'] ?? $t['name'] ?? 'ไม่มีชื่อทีม'); ?></td>
                             <td>0</td>
                         </tr>
                         <?php endforeach; ?>
@@ -94,18 +75,17 @@ try {
         </div>
         <div class="col-lg-4">
             <div class="card ios-card p-4">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-bars text-dark me-2"></i> เมนูจัดการ</h5>
+                <h5 class="fw-bold mb-3">เมนู</h5>
                 <div class="d-grid gap-2">
                     <?php if ($user_role == 'admin'): ?>
                         <a href="manage_matches.php" class="btn btn-outline-dark">จัดการการแข่งขัน</a>
                         <a href="manage_teams.php" class="btn btn-outline-dark">จัดการทีมสี</a>
                     <?php endif; ?>
-                    <a href="index.php" class="btn btn-primary">หน้าหลัก</a>
+                    <a href="logout.php" class="btn btn-danger">ออกจากระบบ</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 </body>
 </html>
