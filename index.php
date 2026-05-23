@@ -11,7 +11,7 @@ $calendar_timeline = [];
 $has_scores = false;
 
 // ------------------------------------------------------------------
-// ส่วนที่ 1: ดึงข้อมูลสรุปทีมสีประจำโรงเรียน (เวอร์ชันสแตนด์บายใช้งานได้แน่นอน)
+// ส่วนที่ 1: ดึงรายชื่อทีมสี (Safe-Mode การันตีหน้าเว็บเปิดได้แน่นอน)
 // ------------------------------------------------------------------
 try {
     $sql_teams = "SELECT id, team_name FROM teams ORDER BY id ASC";
@@ -29,22 +29,35 @@ try {
         ];
     }
 } catch (\Exception $e) {
-    // ป้องกันระบบล่ม
+    // ป้องกันกรณีฉุกเฉิน
 }
 
 // ------------------------------------------------------------------
-// ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (เวอร์ชันปลดล็อกฟิลเตอร์ ดึงขึ้นทุกกรณี)
+// ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (แก้ไขคอลัมน์ให้ตรงตามระบบจริงของคุณครู)
 // ------------------------------------------------------------------
 try {
-    // ดึงข้อมูลรายการแข่งขันทั้งหมดที่มีอยู่ในฐานข้อมูล
+    // ดึงข้อมูลโดด ๆ จากตาราง matches โดยไม่ใช้ ORDER BY ใน SQL ป้องกันคอลัมน์เวลาไม่ตรงแล้วล่ม
     $sql_matches = "SELECT * FROM matches";
     $all_matches = $pdo->query($sql_matches)->fetchAll();
 
     foreach ($all_matches as $match) {
-        // ดึงค่าเวลา (รองรับกรณีเป็น NULL หรือชื่อคอลัมน์สลับกัน)
-        $match_time = isset($match['date_time']) ? $match['date_time'] : (isset($match['match_datetime']) ? $match['match_datetime'] : '');
-        
-        // ตั้งค่าสถานะเริ่มต้นแบบปลอดภัย
+        // ดึงค่าเวลา: ล็อกตรวจสอบ match_datetime (ตามหน้า manage_matches จริงของคุณครู)
+        $match_time = '';
+        if (isset($match['match_datetime'])) {
+            $match_time = $match['match_datetime'];
+        } elseif (isset($match['date_time'])) {
+            $match_time = $match['date_time'];
+        }
+
+        // ดึงค่าชื่อการแข่งขัน: ล็อกตรวจสอบ sport_name
+        $display_name = 'รายการแข่งขัน';
+        if (!empty($match['sport_name'])) {
+            $display_name = $match['sport_name'];
+        } elseif (!empty($match['match_name'])) {
+            $display_name = $match['match_name'];
+        }
+
+        // ตั้งค่าป้ายสถานะเวลาแบบไดนามิก
         $status_label = 'ยังไม่ถึงวันแข่งขัน';
         $status_class = 'bg-secondary bg-opacity-10 text-secondary';
         
@@ -64,31 +77,38 @@ try {
                 $status_class = 'bg-info bg-opacity-10 text-info';
             }
         } else {
-            // เคสเซฟตี้: ถ้าในเบสไม่มีวันที่ หรือคีย์ไม่เข้า ให้ขึ้นสถานะทั่วไปแทน ไม่ให้ตารางพัง
             $status_label = 'เปิดลงทะเบียน';
             $status_class = 'bg-success bg-opacity-10 text-success';
         }
 
         $match['computed_time'] = $match_time;
+        $match['computed_name'] = $display_name;
         $match['status_label'] = $status_label;
         $match['status_class'] = $status_class;
 
         $calendar_timeline[] = $match;
     }
 
+    // จัดเรียงลำดับด้วย PHP แทน SQL เพื่อความปลอดภัย (รายการที่ใกล้จะถึงที่สุดอยู่บนสุด)
+    usort($calendar_timeline, function($a, $b) {
+        if (empty($a['computed_time'])) return 1;
+        if (empty($b['computed_time'])) return -1;
+        return strtotime($a['computed_time']) - strtotime($b['computed_time']);
+    });
+
 } catch (\Exception $e) {
-    // ป้องกันระบบล่ม
-    $calendar_timeline = [];
+    // ถ้าเกิดข้อผิดพลาดใด ๆ ให้แสดง Error พรีวิวเพื่อตรวจสอบได้ทันที
+    die("<div class='container mt-5 alert alert-danger text-center'>ระบบตรวจพบปัญหาในตาราง matches: " . $e->getMessage() . "</div>");
 }
 
-// ฟังก์ชันจำลองสีระบบอัตโนมัติประจำทีมสไตล์ iOS
+// ฟังก์ชันดึงเฉดสีระบบอัตโนมัติประจำทีมสไตล์ iOS
 function getDynamicColor($team_id) {
     $colors = [
-        1 => '#007aff', // น้ำเงิน / บุษราคัม (ปรับตามอันดับรูปภาพของคุณครู)
-        2 => '#af52de', // ม่วง / มรกต
-        3 => '#ff9500', // ส้ม / โกเมน
-        4 => '#ff3b30', // แดง
-        5 => '#34c759'  // เขียว
+        1 => '#007aff', // บุษราคัม (น้ำเงินอิงตามรูปบอร์ด)
+        2 => '#af52de', // มรกต (ม่วงอิงตามรูปบอร์ด)
+        3 => '#ff9500', // โกเมน (ส้มอิงตามรูปบอร์ด)
+        4 => '#ff3b30', 
+        5 => '#34c759'  
     ];
     return $colors[$team_id] ?? '#8e8e93';
 }
@@ -155,7 +175,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
             <h1 class="fw-bold text-dark mb-1">SportsDay Dashboard</h1>
             <p class="text-muted mb-0">
                 ยินดีต้อนรับ: <span class="badge bg-dark"><?php echo htmlspecialchars($user_name); ?></span> 
-                (สิทธิ์การใช้งาน: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)
+                (สิทธิ์: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <a href="edit_profile.php" class="btn btn-sm btn-outline-secondary py-1 px-2 ms-2" style="font-size: 0.8rem; border-radius: 6px;"><i class="fa-solid fa-user-pen me-1"></i> แก้ไขรหัสผ่าน</a>
                 <?php endif; ?>
@@ -291,7 +311,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                         </td>
                                         <td>
                                             <span class="fw-bold text-dark">
-                                                <?php echo htmlspecialchars($match['match_name'] ?? 'รายการแข่งขัน'); ?>
+                                                <?php echo htmlspecialchars($match['computed_name']); ?>
                                             </span>
                                             <?php if(!empty($match['gender_type'])): ?>
                                                 <span class="badge bg-light text-dark font-monospace mx-1"><?php echo htmlspecialchars($match['gender_type']); ?></span>
