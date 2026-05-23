@@ -2,38 +2,29 @@
 require_once 'db.php';
 
 $match_id = isset($_GET['match_id']) ? intval($_GET['match_id']) : 0;
-
-// ดึงรายละเอียดแมตช์
 $stmt = $pdo->prepare("SELECT m.*, c.category_name FROM matches m LEFT JOIN sport_categories c ON m.category_id = c.id WHERE m.id = ?");
 $stmt->execute([$match_id]);
 $match = $stmt->fetch();
 
 if (!$match) { die("ไม่พบรายการแข่งขันนี้"); }
 
-// บันทึกรายชื่อนักกีฬา
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_athlete'])) {
     $team_id = $_POST['team_id'];
     $athlete_name = trim($_POST['athlete_name']);
     $student_id = trim($_POST['student_id']);
 
-    // เช็กโควตาว่าเต็มหรือยัง
     $check = $pdo->prepare("SELECT COUNT(*) FROM athletes WHERE match_id = ? AND team_id = ?");
     $check->execute([$match_id, $team_id]);
-    $current_players = $check->fetchColumn();
-
-    if ($current_players >= $match['max_players_per_team']) {
-        $error_msg = "ทีมสีนี้มีรายชื่อนักกีฬาเต็มโควตาจำนวน " . $match['max_players_per_team'] . " คนแล้ว!";
+    
+    if ($check->fetchColumn() >= $match['max_players_per_team']) {
+        $error_msg = "❌ โควตานักกีฬาของสีนี้เต็มแล้ว (จำกัด " . $match['max_players_per_team'] . " คน)";
     } else {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO athletes (team_id, match_id, athlete_name, student_id) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$team_id, $match_id, $athlete_name, $student_id]);
-            header("Location: register_athletes.php?match_id=$match_id&success=1");
-            exit();
-        } catch (\PDOException $e) { $error_msg = $e->getMessage(); }
+        $pdo->prepare("INSERT INTO athletes (team_id, match_id, athlete_name, student_id) VALUES (?, ?, ?, ?)")->execute([$team_id, $match_id, $athlete_name, $student_id]);
+        header("Location: register_athletes.php?match_id=$match_id&success=1");
+        exit();
     }
 }
 
-// ลบรายชื่อนักกีฬา
 if (isset($_GET['delete_athlete_id'])) {
     $pdo->prepare("DELETE FROM athletes WHERE id = ?")->execute([$_GET['delete_athlete_id']]);
     header("Location: register_athletes.php?match_id=$match_id&success=2");
@@ -49,29 +40,52 @@ $athlete_list = $athletes->fetchAll();
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ลงทะเบียนนักกีฬา</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f2f2f7; color: #1c1c1e; }
+        .navbar { background-color: rgba(28, 28, 30, 0.92) !important; backdrop-filter: blur(20px); }
+        .ios-card { background: #ffffff; border-radius: 16px !important; border: none !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important; }
+        .form-control, .form-select { border-radius: 10px; border: 1px solid #d1d1d6; padding: 10px; }
+        .btn { border-radius: 10px; padding: 10px; font-weight: 600; }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container mt-5">
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-3">
+    <div class="container">
+        <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
+                <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
+                <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
+                <li class="nav-item"><a class="nav-link active" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
+                <li class="nav-item"><a class="nav-link" href="manage_scores.php"><i class="fa-solid fa-star me-1"></i> บันทึกคะแนน</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
     <div class="mb-4">
-        <a href="manage_matches.php" class="btn btn-secondary btn-sm">⬅️ กลับหน้าจัดการแข่งขัน</a>
-        <h2 class="mt-2">👥 ลงชื่อนักกีฬา: <?php echo htmlspecialchars($match['sport_name']); ?> (<?php echo $match['gender_type']; ?>)</h2>
-        <p class="text-muted">ลักษณะการแข่ง: <?php echo $match['tournament_type']; ?> | โควตานักกีฬา: ไม่เกิน <strong><?php echo $match['max_players_per_team']; ?></strong> คน/ทีมสี</p>
+        <a href="manage_matches.php" class="btn btn-light btn-sm mb-2"><i class="fa-solid fa-arrow-left me-1"></i> ย้อนกลับ</a>
+        <h3 class="fw-bold m-0">👥 รายชื่อนักกีฬา: <?php echo htmlspecialchars($match['sport_name']); ?> (<?php echo $match['gender_type']; ?>)</h3>
+        <p class="text-muted small mb-0">โควตาสูงสุด: <?php echo $match['max_players_per_team']; ?> คนต่อหนึ่งทีมสี</p>
     </div>
 
-    <?php if (isset($error_msg)): ?>
-        <div class="alert alert-danger"><?php echo $error_msg; ?></div>
-    <?php endif; ?>
+    <?php if (isset($error_msg)): ?><div class="alert alert-danger border-0 rounded-3"><?php echo $error_msg; ?></div><?php endif; ?>
 
-    <div class="row">
+    <div class="row g-4">
         <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-dark"><h5>✍️ ส่งรายชื่อนักกีฬา</h5></div>
+            <div class="card ios-card p-2">
                 <div class="card-body">
+                    <h5 class="fw-bold mb-3">ส่งรายชื่อนักเรียน</h5>
                     <form action="register_athletes.php?match_id=<?php echo $match_id; ?>" method="POST">
-                        <div class="mb-2">
-                            <label class="form-label">เลือกทีมสี</label>
+                        <div class="mb-2"><label class="small text-muted">ทีมสี</label>
                             <select class="form-select" name="team_id" required>
                                 <option value="">-- เลือกทีมสี --</option>
                                 <?php foreach ($teams as $t): ?>
@@ -79,13 +93,11 @@ $athlete_list = $athletes->fetchAll();
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label">ชื่อ-นามสกุล นักกีฬา</label>
-                            <input type="text" class="form-control" name="athlete_name" required>
+                        <div class="mb-2"><label class="small text-muted">ชื่อ-นามสกุล</label>
+                            <input type="text" class="form-control" name="athlete_name" required placeholder="เด็กชาย สมชาย ใจดี">
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">รหัสนักเรียน (ถ้ามี)</label>
-                            <input type="text" class="form-control" name="student_id">
+                        <div class="mb-3"><label class="small text-muted">รหัสนักเรียน</label>
+                            <input type="text" class="form-control" name="student_id" placeholder="รหัสประจำตัว">
                         </div>
                         <button type="submit" name="add_athlete" class="btn btn-primary w-100">บันทึกรายชื่อ</button>
                     </form>
@@ -94,35 +106,20 @@ $athlete_list = $athletes->fetchAll();
         </div>
 
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <table class="table table-bordered table-striped">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>ทีมสี</th>
-                                <th>รหัสนักเรียน</th>
-                                <th>ชื่อ-นามสกุลนักกีฬา</th>
-                                <th class="text-center">จัดการ</th>
-                            </tr>
-                        </thead>
+            <div class="card ios-card p-2">
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead><tr class="text-muted small"><th>ทีมสี</th><th>รหัสนักเรียน</th><th>รายชื่อนักกีฬา</th><th class="text-center">จัดการ</th></tr></thead>
                         <tbody>
-                            <?php if (count($athlete_list) > 0): ?>
-                                <?php foreach ($athlete_list as $ath): ?>
-                                <tr>
-                                    <td>
-                                        <span class="badge" style="background-color: <?php echo $ath['team_color']; ?>;">
-                                            <?php echo htmlspecialchars($ath['team_name']); ?>
-                                        </span>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($ath['student_id']); ?></td>
-                                    <td><?php echo htmlspecialchars($ath['athlete_name']); ?></td>
-                                    <td class="text-center">
-                                        <a href="register_athletes.php?match_id=<?php echo $match_id; ?>&delete_athlete_id=<?php echo $ath['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('ลบรายชื่อนักกีฬาท่านนี้?');">ลบ/แก้ไข</a>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="4" class="text-center text-muted">ยังไม่มีการส่งรายชื่อนักกีฬาในรายการนี้</td></tr>
+                            <?php if(count($athlete_list) > 0): foreach ($athlete_list as $ath): ?>
+                            <tr>
+                                <td><span class="badge px-3 py-2" style="background-color: <?php echo $ath['team_color']; ?>; border-radius: 8px;"><?php echo htmlspecialchars($ath['team_name']); ?></span></td>
+                                <td class="font-monospace text-muted"><?php echo htmlspecialchars($ath['student_id']); ?></td>
+                                <td class="fw-bold"><?php echo htmlspecialchars($ath['athlete_name']); ?></td>
+                                <td class="text-center"><a href="register_athletes.php?match_id=<?php echo $match_id; ?>&delete_athlete_id=<?php echo $ath['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('ลบ?');"><i class="fa-solid fa-trash"></i></a></td>
+                            </tr>
+                            <?php endforeach; else: ?>
+                                <tr><td colspan="4" class="text-center text-muted p-4">ยังไม่มีข้อมูลส่งรายชื่อลงทะเบียนในแมตช์นี้</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -131,5 +128,6 @@ $athlete_list = $athletes->fetchAll();
         </div>
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
