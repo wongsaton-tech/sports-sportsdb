@@ -176,6 +176,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
+                    <li class="nav-item"><a class="nav-link" href="manage_users.php"><i class="fa-solid fa-users-gear me-1"></i> จัดการผู้ใช้งาน</a></li>
                 <?php endif; ?>
                 
                 <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
