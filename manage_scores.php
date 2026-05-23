@@ -1,5 +1,7 @@
 <?php
 require_once 'db.php';
+require_once 'check_auth.php';
+checkRole(['admin', 'scorekeeper']);
 
 // 1. ฟังก์ชันลบข้อมูล
 if (isset($_GET['delete'])) {
@@ -41,19 +43,41 @@ $results = $pdo->query("SELECT r.*, m.sport_name, m.gender_type, t.team_name, t.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บันทึกผลคะแนนการแข่งขัน</title>
+    <title>บันทึกผลคะแนน - SportsDay Center</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body, h1, h2, h3, h4, h5, table, .btn, .nav-link {
-            font-family: 'Sarabun', sans-serif !important;
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background-color: #f2f2f7; 
+            color: #1c1c1e; 
+        }
+        .navbar { 
+            background-color: rgba(28, 28, 30, 0.92) !important; 
+            backdrop-filter: blur(20px); 
+        }
+        .ios-card { 
+            background: #ffffff; 
+            border-radius: 16px !important; 
+            border: none !important; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important; 
+        }
+        .form-control, .form-select { 
+            border-radius: 10px; 
+            border: 1px solid #d1d1d6; 
+            padding: 10px; 
+        }
+        .btn { 
+            border-radius: 10px; 
+            padding: 10px; 
+            font-weight: 600; 
         }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-3">
     <div class="container">
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
         <div class="collapse navbar-collapse" id="navbarNav">
@@ -66,34 +90,47 @@ $results = $pdo->query("SELECT r.*, m.sport_name, m.gender_type, t.team_name, t.
 </nav>
 
 <div class="container mt-4">
-    <h2 class="mb-4">🏅 ระบบบันทึกคะแนนและเหรียญรางวัล</h2>
+    <h3 class="fw-bold mb-4">🏅 บันทึกผลคะแนนและเหรียญรางวัล</h3>
 
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-warning text-dark fw-bold"><h5>✍️ กรอกผลการแข่งขัน</h5></div>
+    <?php if (isset($_GET['success'])): ?>
+        <div class="alert alert-success border-0 rounded-3 mb-4">
+            <i class="fa-solid fa-circle-check me-2"></i> 
+            <?php echo $_GET['success'] == 'deleted' ? 'ลบข้อมูลเรียบร้อยแล้ว' : 'บันทึกผลการแข่งขันเรียบร้อยแล้ว'; ?>
+        </div>
+    <?php endif; ?>
+
+    <div class="row g-4">
+        
+        <!-- ฟอร์มบันทึกคะแนน -->
+        <div class="col-md-5">
+            <div class="card ios-card p-2">
                 <div class="card-body">
+                    <h5 class="fw-bold mb-3">✍️ กรอกผลการแข่งขัน</h5>
                     <form action="manage_scores.php" method="POST">
-                        <div class="mb-2">
-                            <label class="form-label">เลือกรายการแข่งขัน</label>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold">เลือกรายการแข่งขัน</label>
                             <select class="form-select" name="match_id" required>
                                 <option value="">-- เลือกแมตช์ --</option>
                                 <?php foreach ($matches as $m): ?>
-                                    <option value="<?php echo $m['id']; ?>"><?php echo htmlspecialchars($m['sport_name'] . ' (' . $m['gender_type'] . ')'); ?></option>
+                                    <option value="<?php echo $m['id']; ?>">
+                                        <?php echo htmlspecialchars($m['sport_name'] . ' (' . $m['gender_type'] . ')'); ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label">เลือกทีมสี</label>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold">เลือกทีมสี</label>
                             <select class="form-select" name="team_id" required>
                                 <option value="">-- เลือกทีมสี --</option>
                                 <?php foreach ($teams as $t): ?>
-                                    <option value="<?php echo $t['id']; ?>"><?php echo htmlspecialchars($t['team_name']); ?></option>
+                                    <option value="<?php echo $t['id']; ?>">
+                                        <?php echo htmlspecialchars($t['team_name']); ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label">เหรียญรางวัล</label>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold">เหรียญรางวัล</label>
                             <select class="form-select" name="medal" required>
                                 <option value="ไม่มี">ไม่มีเหรียญ</option>
                                 <option value="ทอง">🥇 ทอง</option>
@@ -101,59 +138,88 @@ $results = $pdo->query("SELECT r.*, m.sport_name, m.gender_type, t.team_name, t.
                                 <option value="ทองแดง">🥉 ทองแดง</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">คะแนนที่ได้รับ</label>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted fw-bold">คะแนนที่ได้รับ</label>
                             <input type="number" class="form-control" name="points" value="0" min="0" required>
                         </div>
-                        <button type="submit" name="add_score" class="btn btn-warning fw-bold w-100">💾 บันทึกคะแนน</button>
+                        <button type="submit" name="add_score" class="btn btn-warning w-100 fw-bold">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> บันทึกคะแนน
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white"><h5>📋 ผลการแข่งขันล่าสุด</h5></div>
+        <!-- ตารางผลการแข่งขัน -->
+        <div class="col-md-7">
+            <div class="card ios-card p-2">
                 <div class="card-body p-0">
-                    <table class="table table-striped align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>รายการแข่งขัน</th>
-                                <th>ทีมสี</th>
-                                <th class="text-center">เหรียญ</th>
-                                <th class="text-center">คะแนน</th>
-                                <th class="text-center">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($results as $res): ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($res['sport_name']); ?></strong> (<?php echo $res['gender_type']; ?>)</td>
-                                <td><span class="badge" style="background-color: <?php echo $res['team_color']; ?>;"><?php echo htmlspecialchars($res['team_name']); ?></span></td>
-                                <td class="text-center">
-                                    <?php 
-                                        if($res['medal'] == 'ทอง') echo '🥇 ทอง';
-                                        elseif($res['medal'] == 'เงิน') echo '🥈 เงิน';
-                                        elseif($res['medal'] == 'ทองแดง') echo '🥉 ทองแดง';
-                                        else echo '-';
-                                    ?>
-                                </td>
-                                <td class="text-center fw-bold text-primary"><?php echo $res['points']; ?></td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="edit_score.php?id=<?php echo $res['id']; ?>" class="btn btn-outline-warning"><i class="fa-solid fa-pen"></i></a>
-                                        <a href="manage_scores.php?delete=<?php echo $res['id']; ?>" class="btn btn-outline-danger" onclick="return confirm('ยืนยันการลบข้อมูลนี้?');"><i class="fa-solid fa-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                    <div class="p-3 border-bottom">
+                        <h5 class="fw-bold m-0">📋 ผลการแข่งขันล่าสุด</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>รายการแข่งขัน</th>
+                                    <th>ทีมสี</th>
+                                    <th class="text-center">เหรียญ</th>
+                                    <th class="text-center">คะแนน</th>
+                                    <th class="text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($results as $res): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo htmlspecialchars($res['sport_name']); ?></strong><br>
+                                        <small class="text-muted">(<?php echo $res['gender_type']; ?>)</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge px-3 py-2" style="background-color: <?php echo $res['team_color']; ?>;">
+                                            <?php echo htmlspecialchars($res['team_name']); ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <?php 
+                                            if($res['medal'] == 'ทอง') echo '🥇 ทอง';
+                                            elseif($res['medal'] == 'เงิน') echo '🥈 เงิน';
+                                            elseif($res['medal'] == 'ทองแดง') echo '🥉 ทองแดง';
+                                            else echo '-';
+                                        ?>
+                                    </td>
+                                    <td class="text-center fw-bold text-primary"><?php echo $res['points']; ?></td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="edit_score.php?id=<?php echo $res['id']; ?>" class="btn btn-outline-warning">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
+                                            <a href="manage_scores.php?delete=<?php echo $res['id']; ?>" 
+                                               class="btn btn-outline-danger"
+                                               onclick="return confirm('ยืนยันการลบข้อมูลนี้?');">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                                <?php if(empty($results)): ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-5">
+                                            ยังไม่มีข้อมูลผลการแข่งขัน
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
