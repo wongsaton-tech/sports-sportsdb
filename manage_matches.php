@@ -10,7 +10,6 @@ $edit_tournament_type = '';
 $edit_max_players = 1;
 $edit_datetime = '';
 
-// ================= สเต็บที่ 1: ดึงข้อมูลรายการแข่งขันมาเข้าฟอร์มเมื่อกด "แก้ไข" (GET) =================
 if (isset($_GET['edit_id'])) {
     $edit_id = intval($_GET['edit_id']);
     $stmt = $pdo->prepare("SELECT * FROM matches WHERE id = ?");
@@ -24,12 +23,10 @@ if (isset($_GET['edit_id'])) {
         $edit_gender_type = $match_to_edit['gender_type'];
         $edit_tournament_type = $match_to_edit['tournament_type'];
         $edit_max_players = $match_to_edit['max_players_per_team'];
-        // แปลงฟอร์แมตวันที่ให้ตรงกับที่ input datetime-local ต้องการ (Y-m-d\TH:i)
         $edit_datetime = !empty($match_to_edit['match_datetime']) ? date('Y-m-d\TH:i', strtotime($match_to_edit['match_datetime'])) : '';
     }
 }
 
-// ================= สเต็บที่ 2: ระบบบันทึกข้อมูล (ทั้งสร้างใหม่ และ อัปเดตแก้ไข) =================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_match'])) {
     $category_id = $_POST['category_id'];
     $sport_name = trim($_POST['sport_name']);
@@ -44,55 +41,51 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_match'])) {
     if (!empty($category_id) && !empty($sport_name)) {
         try {
             if ($is_edit) {
-                // เคสแก้ไขอัปเดตข้อมูล
                 $stmt = $pdo->prepare("UPDATE matches SET category_id = ?, sport_name = ?, gender_type = ?, tournament_type = ?, max_players_per_team = ?, match_datetime = ? WHERE id = ?");
                 $stmt->execute([$category_id, $sport_name, $gender_type, $tournament_type, $max_players_per_team, $match_datetime, $target_id]);
                 header("Location: manage_matches.php?success=3");
                 exit();
             } else {
-                // เคสสร้างรายการแข่งขันใหม่
                 $stmt = $pdo->prepare("INSERT INTO matches (category_id, sport_name, gender_type, tournament_type, max_players_per_team, match_datetime) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$category_id, $sport_name, $gender_type, $tournament_type, $max_players_per_team, $match_datetime]);
                 header("Location: manage_matches.php?success=1");
                 exit();
             }
-        } catch (\PDOException $e) {
-            $error_msg = "เกิดข้อผิดพลาดในการบันทึก: " . $e->getMessage();
-        }
+        } catch (\PDOException $e) { $error_msg = $e->getMessage(); }
     }
 }
 
-// ================= สเต็บที่ 3: ระบบลบรายการแข่งขันพร้อมดัก Error ความปลอดภัย =================
 if (isset($_GET['delete_id'])) {
-    $delete_id = intval($_GET['delete_id']);
     try {
-        $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
-        $stmt->execute([$delete_id]);
+        $pdo->prepare("DELETE FROM matches WHERE id = ?")->execute([$_GET['delete_id']]);
         header("Location: manage_matches.php?success=2");
         exit();
-    } catch (\PDOException $e) {
-        // หากเกิด Foreign Key Constraint Error (เพราะมีรายชื่อนักกีฬาหรือคะแนนผูกอยู่) ระบบจะแจ้งเตือนแทนการปล่อยให้เว็บล่ม
-        $error_msg = "⚠️ ไม่สามารถลบรายการแข่งขันนี้ได้ เนื่องจากมีรายชื่อนักเรียนลงทะเบียนแข่ง หรือมีการบันทึกคะแนนผลการแข่งขันในระบบแล้ว (กรุณาลบข้อมูลเหล่านั้นก่อน)";
-    }
+    } catch (\PDOException $e) { $error_msg = "⚠️ รายการนี้มีรายชื่อนักกีฬาหรือคะแนนผูกอยู่ ไม่สามารถลบได้"; }
 }
 
-// ดึงข้อมูลตัวเลือกประเภทกีฬา และรายการแมตช์ทั้งหมดมาแสดงผล
 $categories = $pdo->query("SELECT * FROM sport_categories ORDER BY category_name ASC")->fetchAll();
 $matches = $pdo->query("SELECT m.*, c.category_name FROM matches m LEFT JOIN sport_categories c ON m.category_id = c.id ORDER BY m.id DESC")->fetchAll();
 ?>
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สร้างและจัดการรายการแข่งขันกีฬาสี</title>
+    <title>รายการแข่งขันกีฬา</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f2f2f7; color: #1c1c1e; }
+        .navbar { background-color: rgba(28, 28, 30, 0.92) !important; backdrop-filter: blur(20px); }
+        .ios-card { background: #ffffff; border-radius: 16px !important; border: none !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important; }
+        .form-control, .form-select { border-radius: 10px; border: 1px solid #d1d1d6; padding: 8px 12px; }
+        .btn { border-radius: 10px; padding: 8px 16px; font-weight: 600; }
+    </style>
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-3">
     <div class="container">
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
         <div class="collapse navbar-collapse" id="navbarNav">
@@ -108,149 +101,83 @@ $matches = $pdo->query("SELECT m.*, c.category_name FROM matches m LEFT JOIN spo
 </nav>
 
 <div class="container mt-4">
-    <h2 class="mb-4">🏃 จัดการและสร้างรายการแข่งขันกีฬา</h2>
+    <h3 class="fw-bold mb-4">🏃 จัดการรายการแข่งขันกีฬา</h3>
 
-    <?php if (isset($_GET['success'])): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fa-solid fa-circle-check me-1"></i>
-            <?php 
-                if($_GET['success'] == 1) echo "สร้างรายการแข่งขันใหม่สำเร็จ!";
-                if($_GET['success'] == 2) echo "ลบรายการแข่งขันเรียบร้อยแล้ว!";
-                if($_GET['success'] == 3) echo "แก้ไขข้อมูลรายการแข่งขันสำเร็จ!";
-            ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
+    <?php if (isset($error_msg)): ?><div class="alert alert-danger rounded-3 border-0"><?php echo $error_msg; ?></div><?php endif; ?>
 
-    <?php if (isset($error_msg)): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php echo $error_msg; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm border-start border-4 <?php echo $edit_mode ? 'border-warning' : 'border-success'; ?>">
-                <div class="card-header <?php echo $edit_mode ? 'bg-warning text-dark' : 'bg-success text-white'; ?> fw-bold">
-                    <h5 class="mb-0"><?php echo $edit_mode ? '📝 แก้ไขรายการแข่งขัน' : '➕ สร้างรายการแข่งขันใหม่'; ?></h5>
-                </div>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card ios-card p-2">
                 <div class="card-body">
+                    <h5 class="fw-bold mb-3"><?php echo $edit_mode ? 'แก้ไขข้อมูลแมตช์' : 'สร้างรายการใหม่'; ?></h5>
                     <form action="manage_matches.php" method="POST">
                         <input type="hidden" name="is_edit" value="<?php echo $edit_mode ? '1' : '0'; ?>">
                         <input type="hidden" name="target_id" value="<?php echo $edit_id; ?>">
 
-                        <div class="mb-2">
-                            <label class="form-label fw-bold">กลุ่มประเภทกีฬา</label>
+                        <div class="mb-2"><label class="small text-muted">กลุ่มประเภทกีฬา</label>
                             <select class="form-select" name="category_id" required>
                                 <option value="">-- เลือกประเภท --</option>
                                 <?php foreach ($categories as $cat): ?>
-                                    <option value="<?php echo $cat['id']; ?>" <?php echo ($cat['id'] == $edit_category_id) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($cat['category_name']); ?>
-                                    </option>
+                                    <option value="<?php echo $cat['id']; ?>" <?php echo ($cat['id'] == $edit_category_id) ? 'selected' : ''; ?>><?php echo $cat['category_name']; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold">ชื่อชนิดกีฬาที่แข่ง</label>
-                            <input type="text" class="form-control" name="sport_name" value="<?php echo htmlspecialchars($edit_sport_name); ?>" placeholder="เช่น วิ่ง 100 เมตร, ฟุตบอล" required>
+                        <div class="mb-2"><label class="small text-muted">ชื่อชนิดกีฬา</label>
+                            <input type="text" class="form-control" name="sport_name" value="<?php echo htmlspecialchars($edit_sport_name); ?>" required>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold">ประเภทนักกีฬา</label>
+                        <div class="mb-2"><label class="small text-muted">ประเภทนักกีฬา</label>
                             <select class="form-select" name="gender_type">
-                                <option value="ชาย" <?php echo ($edit_gender_type == 'ชาย') ? 'selected' : ''; ?>>ชาย</option>
-                                <option value="หญิง" <?php echo ($edit_gender_type == 'หญิง') ? 'selected' : ''; ?>>หญิง</option>
-                                <option value="ทั่วไป/ผสม" <?php echo ($edit_gender_type == 'ทั่วไป/ผสม') ? 'selected' : ''; ?>>ทั่วไป/ผสม</option>
+                                <option value="ชาย" <?php echo ($edit_gender_type=='ชาย')?'selected':''; ?>>ชาย</option>
+                                <option value="หญิง" <?php echo ($edit_gender_type=='หญิง')?'selected':''; ?>>หญิง</option>
+                                <option value="ทั่วไป/ผสม" <?php echo ($edit_gender_type=='ทั่วไป/ผสม')?'selected':''; ?>>ทั่วไป/ผสม</option>
                             </select>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold">ลักษณะการแข่งขัน</label>
-                            <select class="form-select" name="tournament_type" required>
-                                <option value="พบกันหมด" <?php echo ($edit_tournament_type == 'พบกันหมด') ? 'selected' : ''; ?>>แบบพบกันหมด</option>
-                                <option value="คัดออก" <?php echo ($edit_tournament_type == 'คัดออก') ? 'selected' : ''; ?>>แบบคัดออก</option>
+                        <div class="mb-2"><label class="small text-muted">กติกาการแข่ง</label>
+                            <select class="form-select" name="tournament_type">
+                                <option value="พบกันหมด" <?php echo ($edit_tournament_type=='พบกันหมด')?'selected':''; ?>>พบกันหมด</option>
+                                <option value="คัดออก" <?php echo ($edit_tournament_type=='คัดออก')?'selected':''; ?>>คัดออก</option>
                             </select>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold">จำกัดนักกีฬาต่อทีมสี (คน)</label>
-                            <input type="number" class="form-control" name="max_players_per_team" value="<?php echo $edit_max_players; ?>" min="1" required>
+                        <div class="mb-2"><label class="small text-muted">จำกัดจำนวนคนต่อทีม</label>
+                            <input type="number" class="form-control" name="max_players_per_team" value="<?php echo $edit_max_players; ?>" min="1">
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">วัน เวลาแข่งขัน</label>
+                        <div class="mb-3"><label class="small text-muted">วัน เวลาแข่งขัน</label>
                             <input type="datetime-local" class="form-control" name="match_datetime" value="<?php echo $edit_datetime; ?>">
                         </div>
-
-                        <div class="row g-2">
-                            <div class="<?php echo $edit_mode ? 'col-6' : 'col-12'; ?>">
-                                <button type="submit" name="save_match" class="btn <?php echo $edit_mode ? 'btn-warning fw-bold' : 'btn-success'; ?> w-100">
-                                    <i class="fa-solid fa-floppy-disk me-1"></i> <?php echo $edit_mode ? 'อัปเดตรายการ' : 'สร้างรายการแข่งขัน'; ?>
-                                </button>
-                            </div>
-                            <?php if ($edit_mode): ?>
-                                <div class="col-6">
-                                    <a href="manage_matches.php" class="btn btn-secondary w-100">ยกเลิก</a>
-                                </div>
-                            <?php endif; ?>
-                        </div>
+                        <button type="submit" name="save_match" class="btn <?php echo $edit_mode ? 'btn-warning' : 'btn-success'; ?> w-100">บันทึกข้อมูล</button>
                     </form>
                 </div>
             </div>
         </div>
 
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-secondary text-white"><h5>📋 รายการแข่งขันทั้งหมด</h5></div>
+            <div class="card ios-card p-2">
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>รายการแข่งขัน</th>
-                                    <th>กลุ่ม</th>
-                                    <th>ลักษณะ/โควตา</th>
-                                    <th class="text-center" width="35%">การจัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (count($matches) > 0): ?>
-                                    <?php foreach ($matches as $m): ?>
-                                    <tr <?php echo ($edit_id == $m['id']) ? 'class="table-warning"' : ''; ?>>
-                                        <td>
-                                            <strong><?php echo htmlspecialchars($m['sport_name']); ?></strong> 
-                                            <span class="badge bg-opacity-10 text-dark bg-dark small"><?php echo $m['gender_type']; ?></span>
-                                            <?php if(!empty($m['match_datetime'])): ?>
-                                                <div class="text-muted small mt-1"><i class="fa-regular fa-calendar-days me-1"></i> <?php echo date('d/m/Y H:i', strtotime($m['match_datetime'])); ?> น.</div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><span class="badge bg-secondary"><?php echo htmlspecialchars($m['category_name'] ?? 'ไม่ได้ระบุ'); ?></span></td>
-                                        <td>
-                                            <div class="small text-dark"><?php echo $m['tournament_type']; ?></div>
-                                            <div class="small text-muted"><i class="fa-solid fa-users me-1"></i><?php echo $m['max_players_per_team']; ?> คน/สี</div>
-                                        </td>
-                                        <td class="text-center">
-                                            <a href="register_athletes.php?match_id=<?php echo $m['id']; ?>" class="btn btn-info btn-sm text-white" title="ลงทะเบียนนักกีฬา">
-                                                <i class="fa-solid fa-users"></i> นักกีฬา
-                                            </a>
-                                            <a href="manage_matches.php?edit_id=<?php echo $m['id']; ?>" class="btn btn-sm btn-outline-warning">
-                                                <i class="fa-solid fa-pen-to-square"></i> แก้ไข
-                                            </a>
-                                            <a href="manage_matches.php?delete_id=<?php echo $m['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('คุณแน่ใจหรือไม่ที่จะลบรายการแข่งขันนี้? ข้อมูลในรายชื่อนักกีฬาและผลการแข่งจะหายไปด้วยหากไม่มีการตรวจเช็ค');">
-                                                <i class="fa-solid fa-trash"></i> ลบ
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr><td colspan="4" class="text-center text-muted p-4">ยังไม่มีข้อมูลรายการแข่งขันในระบบ</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    <table class="table table-hover align-middle mb-0">
+                        <thead><tr class="text-muted small"><th>รายการแข่งขัน</th><th>กลุ่ม</th><th>รายละเอียด</th><th class="text-center">การจัดการ</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($matches as $m): ?>
+                            <tr>
+                                <td>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($m['sport_name']); ?> <span class="badge bg-light text-dark font-monospace small"><?php echo $m['gender_type']; ?></span></div>
+                                    <small class="text-muted"><?php echo !empty($m['match_datetime']) ? date('d/m/Y H:i', strtotime($m['match_datetime'])) : '-'; ?></small>
+                                </td>
+                                <td><span class="badge bg-secondary bg-opacity-10 text-secondary"><?php echo htmlspecialchars($m['category_name']); ?></span></td>
+                                <td class="small text-muted"><?php echo $m['tournament_type']; ?><br><i class="fa-solid fa-users me-1"></i><?php echo $m['max_players_per_team']; ?> คน</td>
+                                <td class="text-center">
+                                    <a href="register_athletes.php?match_id=<?php echo $m['id']; ?>" class="btn btn-sm btn-info text-white"><i class="fa-solid fa-users"></i></a>
+                                    <a href="manage_matches.php?edit_id=<?php echo $m['id']; ?>" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-pen-to-square"></i></a>
+                                    <a href="manage_matches.php?delete_id=<?php echo $m['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('ลบ?');"><i class="fa-solid fa-trash"></i></a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
