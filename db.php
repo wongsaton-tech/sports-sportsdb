@@ -13,7 +13,6 @@ $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION, // เปิดการแจ้งเตือน Error แบบละเอียด
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,       // ดึงข้อมูลในรูปแบบ Array
-    PDO::MYSQL_ATTR_SSL_CA       => true,                  // เปิดใช้งาน SSL Mode (Required)
 ];
 
 try {
