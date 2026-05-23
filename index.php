@@ -335,6 +335,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     <div><h6 class="mb-0 fw-bold text-dark">แก้ไขข้อมูลผู้ใช้</h6><p class="mb-0 text-muted small">แก้ไขข้อมูลการเข้าสู่ระบบ</p></div>
                     <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                 </div>
+                </div>
                 <?php endif; ?>
 
                 <?php if ($user_role == 'guest'): ?>
