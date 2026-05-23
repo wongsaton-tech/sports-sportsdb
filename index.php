@@ -12,7 +12,17 @@ if (isset($_GET['success'])) {
     }
 }
 
+// ==================== ตรวจสอบสถานะข้อมูลสำหรับเงื่อนไขแสดงเมนู ====================
+$has_teams = false;
+$has_categories = false;
+
 try {
+    // นับจำนวนทีมสี
+    $has_teams = $pdo->query("SELECT COUNT(*) FROM teams")->fetchColumn() > 0;
+    
+    // นับจำนวนประเภทกีฬา
+    $has_categories = $pdo->query("SELECT COUNT(*) FROM sport_categories")->fetchColumn() > 0;
+
     // =========================
     // สรุปคะแนนทีมสี
     // =========================
@@ -35,10 +45,7 @@ try {
     // ปฏิทินการแข่งขัน
     // =========================
     $sql_matches = "
-        SELECT 
-            m.*,
-            c.category_name,
-            COUNT(r.id) as is_finished
+        SELECT m.*, c.category_name, COUNT(r.id) as is_finished
         FROM matches m
         LEFT JOIN sport_categories c ON m.category_id = c.id
         LEFT JOIN match_results r ON m.id = r.match_id
@@ -112,51 +119,15 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background-color: #f2f2f7;
-            color: #1c1c1e;
-        }
-        .navbar {
-            background-color: rgba(28, 28, 30, 0.92) !important;
-            backdrop-filter: blur(20px);
-        }
-        .ios-card {
-            background: #ffffff;
-            border-radius: 18px !important;
-            border: none !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
-        }
-        .menu-card {
-            transition: all 0.25s ease-in-out;
-            cursor: pointer;
-            overflow: hidden;
-        }
-        .menu-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 24px rgba(0,0,0,0.08) !important;
-        }
-        .menu-card .card-body {
-            min-height: 88px;
-        }
-        .rank-badge {
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-        .animate-pulse {
-            animation: pulse 1.5s infinite;
-        }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f2f2f7; color: #1c1c1e; }
+        .navbar { background-color: rgba(28, 28, 30, 0.92) !important; backdrop-filter: blur(20px); }
+        .ios-card { background: #ffffff; border-radius: 18px !important; border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important; }
+        .menu-card { transition: all 0.25s ease-in-out; cursor: pointer; overflow: hidden; }
+        .menu-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.08) !important; }
+        .menu-card .card-body { min-height: 88px; }
+        .rank-badge { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 600; font-size: 0.9rem; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .animate-pulse { animation: pulse 1.5s infinite; }
     </style>
 </head>
 <body>
@@ -170,9 +141,7 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link active" href="index.php">
-                        <i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด
-                    </a>
+                    <a class="nav-link active" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a>
                 </li>
             </ul>
             <ul class="navbar-nav ms-auto">
@@ -217,10 +186,7 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
         <div class="col-lg-7">
             <div class="card ios-card p-2">
                 <div class="card-body">
-                    <h5 class="fw-bold mb-3">
-                        <i class="fa-solid fa-award me-2 text-primary"></i>
-                        บอร์ดสรุปเหรียญรางวัล
-                    </h5>
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัล</h5>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead>
@@ -241,7 +207,7 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
                                         <div class="rank-badge mx-auto <?php echo $bg; ?>"><?php echo $index + 1; ?></div>
                                     </td>
                                     <td class="fw-bold">
-                                        <span class="badge me-2" style="background-color: <?php echo $team['team_color']; ?>; width:12px; height:12px; border-radius:50%;"></span>
+                                        <span class="badge me-2" style="background-color: <?php echo $team['team_color']; ?>; width:12px;height:12px;border-radius:50%;"></span>
                                         <?php echo htmlspecialchars($team['team_name']); ?>
                                     </td>
                                     <td class="text-center text-warning fw-bold"><?php echo $team['gold_count']; ?></td>
@@ -257,11 +223,91 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
             </div>
         </div>
 
-        <!-- RIGHT: เมนูการจัดการ -->
+        <!-- RIGHT: เมนูการจัดการ (เรียงตามที่ต้องการ) -->
         <div class="col-lg-5">
             <div class="d-flex flex-column gap-3">
 
+                <?php if ($user_role == 'admin'): ?>
+                    <!-- 1. จัดการผู้ใช้งาน -->
+                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-danger bg-opacity-10 text-danger rounded-4 p-3 me-3">
+                                <i class="fa-solid fa-users-gear fa-lg"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">จัดการผู้ใช้งานระบบ</h6>
+                                <p class="mb-0 text-muted small">เพิ่ม / ลบ / แก้ไขบัญชีเจ้าหน้าที่</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+
+                    <!-- 2. จัดการกลุ่มทีมสี -->
+                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3">
+                                <i class="fa-solid fa-palette fa-lg"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">จัดการกลุ่มทีมสี</h6>
+                                <p class="mb-0 text-muted small">เพิ่ม / แก้ไขทีมสี</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'admin' && $has_teams): ?>
+                    <!-- 3. จัดการประเภทกีฬา (แสดงเมื่อมีทีมสีแล้ว) -->
+                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_categories.php'">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3">
+                                <i class="fa-solid fa-folder-open fa-lg"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">จัดการประเภทกีฬา</h6>
+                                <p class="mb-0 text-muted small">เพิ่ม / แก้ไขกลุ่มประเภทกีฬา</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'admin' && $has_categories): ?>
+                    <!-- 4. จัดการรายการแข่งขัน (แสดงเมื่อมีประเภทกีฬา) -->
+                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_matches.php'">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-success bg-opacity-10 text-success rounded-4 p-3 me-3">
+                                <i class="fa-solid fa-person-running fa-lg"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">จัดการรายการแข่งขัน</h6>
+                                <p class="mb-0 text-muted small">สร้างและจัดการรายการแข่งขัน</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'admin' && $has_teams): ?>
+                    <!-- 5. ล้างข้อมูลทั้งระบบ (แสดงเมื่อมีทีมสี) -->
+                    <div class="card ios-card menu-card border-0 bg-danger bg-opacity-10" 
+                         onclick="if(confirm('⚠️ คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมด?\n\nการกระทำนี้ไม่สามารถกู้คืนได้!')) location.href='reset_system.php';">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-danger bg-opacity-20 text-danger rounded-4 p-3 me-3">
+                                <i class="fa-solid fa-trash-can fa-lg"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold text-danger">ล้างข้อมูลทั้งระบบ</h6>
+                                <p class="mb-0 text-muted small">รีเซ็ตฐานข้อมูลทั้งหมด</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
+                    <!-- บันทึกคะแนน (แสดงทุกคนที่มีสิทธิ์) -->
                     <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
                         <div class="card-body d-flex align-items-center p-3">
                             <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3">
@@ -274,76 +320,16 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
                             <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                         </div>
                     </div>
-                <?php endif; ?>
 
-                <?php if ($user_role == 'admin'): ?>
-
-                    <!-- เมนูใหม่ -->
-                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_categories.php'">
-                        <div class="card-body d-flex align-items-center p-3">
-                            <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3">
-                                <i class="fa-solid fa-folder-open fa-lg"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold">จัดการประเภทกีฬา</h6>
-                                <p class="mb-0 text-muted small">เพิ่ม/แก้ไข กลุ่มประเภทกีฬา</p>
-                            </div>
-                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
-                        </div>
-                    </div>
-
-                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_matches.php'">
-                        <div class="card-body d-flex align-items-center p-3">
-                            <div class="bg-success bg-opacity-10 text-success rounded-4 p-3 me-3">
-                                <i class="fa-solid fa-person-running fa-lg"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold">จัดการรายการแข่งขัน</h6>
-                                <p class="mb-0 text-muted small">สร้างและแก้ไขรายการแข่งขัน</p>
-                            </div>
-                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
-                        </div>
-                    </div>
-
-                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
-                        <div class="card-body d-flex align-items-center p-3">
-                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3">
-                                <i class="fa-solid fa-palette fa-lg"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold">จัดการกลุ่มทีมสี</h6>
-                                <p class="mb-0 text-muted small">เพิ่ม/แก้ไขทีมสี</p>
-                            </div>
-                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
-                        </div>
-                    </div>
-
-                    <!-- เมนูล้างข้อมูลระบบ -->
-                    <div class="card ios-card menu-card border-0 bg-danger bg-opacity-10" 
-                         onclick="if(confirm('⚠️ คุณแน่ใจหรือไม่ที่จะล้างข้อมูลทั้งหมดในระบบ?\n\nการกระทำนี้ไม่สามารถกู้คืนได้!')) location.href='reset_system.php';">
-                        <div class="card-body d-flex align-items-center p-3">
-                            <div class="bg-danger bg-opacity-20 text-danger rounded-4 p-3 me-3">
-                                <i class="fa-solid fa-trash-can fa-lg"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold text-danger">ล้างข้อมูลทั้งระบบ</h6>
-                                <p class="mb-0 text-muted small">รีเซ็ตฐานข้อมูลทั้งหมด</p>
-                            </div>
-                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
-                        </div>
-                    </div>
-
-                <?php endif; ?>
-
-                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
+                    <!-- แก้ไขข้อมูลส่วนตัว -->
                     <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
                         <div class="card-body d-flex align-items-center p-3">
                             <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3">
                                 <i class="fa-solid fa-user-pen fa-lg"></i>
                             </div>
                             <div>
-                                <h6 class="mb-0 fw-bold">แก้ไขข้อมูลผู้ใช้</h6>
-                                <p class="mb-0 text-muted small">แก้ไขข้อมูลการเข้าสู่ระบบ</p>
+                                <h6 class="mb-0 fw-bold">แก้ไขข้อมูลส่วนตัว</h6>
+                                <p class="mb-0 text-muted small">เปลี่ยนชื่อและรหัสผ่าน</p>
                             </div>
                             <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                         </div>
@@ -360,10 +346,7 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
             <div class="card ios-card p-2 mb-5">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="fw-bold m-0">
-                            <i class="fa-solid fa-calendar-days text-success me-2"></i>
-                            ปฏิทินการแข่งขัน
-                        </h5>
+                        <h5 class="fw-bold m-0"><i class="fa-solid fa-calendar-days text-success me-2"></i> ปฏิทินการแข่งขัน</h5>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
@@ -379,20 +362,12 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
                             <tbody>
                                 <?php foreach ($calendar_timeline as $match): ?>
                                 <tr>
-                                    <td>
-                                        <?php if (!empty($match['match_datetime'])): ?>
-                                            <?php echo date('d/m/Y H:i', strtotime($match['match_datetime'])); ?> น.
-                                        <?php endif; ?>
-                                    </td>
+                                    <td><?php if (!empty($match['match_datetime'])) echo date('d/m/Y H:i', strtotime($match['match_datetime'])) . ' น.'; ?></td>
                                     <td>
                                         <div class="fw-bold"><?php echo htmlspecialchars($match['sport_name']); ?></div>
                                         <small class="text-muted"><?php echo $match['tournament_type']; ?></small>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-light text-dark border">
-                                            <?php echo htmlspecialchars($match['category_name'] ?? 'ทั่วไป'); ?>
-                                        </span>
-                                    </td>
+                                    <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars($match['category_name'] ?? 'ทั่วไป'); ?></span></td>
                                     <td class="text-center"><?php echo $match['max_players_per_team']; ?></td>
                                     <td class="text-center">
                                         <span class="badge rounded-pill px-3 py-2 <?php echo $match['status_class']; ?>">
