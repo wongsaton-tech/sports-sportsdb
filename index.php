@@ -47,26 +47,20 @@ $has_categories = $pdo->query("SELECT COUNT(*) FROM sport_categories")->fetchCol
 $has_matches = $pdo->query("SELECT COUNT(*) FROM matches")->fetchColumn() > 0;
 
 try {
-    // =========================
     // สรุปคะแนนทีมสี
-    // =========================
     $sql_scores = "
-        SELECT 
-            t.id, t.team_name, t.team_color,
-            SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
-            SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
-            SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
-            COALESCE(SUM(r.points), 0) as total_points
-        FROM teams t
-        LEFT JOIN match_results r ON t.id = r.team_id
+        SELECT t.id, t.team_name, t.team_color,
+               SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
+               SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
+               SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
+               COALESCE(SUM(r.points), 0) as total_points
+        FROM teams t LEFT JOIN match_results r ON t.id = r.team_id
         GROUP BY t.id, t.team_name, t.team_color
         ORDER BY total_points DESC, gold_count DESC, t.id ASC
     ";
     $teams_dashboard = $pdo->query($sql_scores)->fetchAll();
 
-    // =========================
     // ปฏิทินการแข่งขัน
-    // =========================
     $sql_matches = "
         SELECT m.*, c.category_name, COUNT(r.id) as is_finished
         FROM matches m
@@ -239,9 +233,10 @@ $is_logged_in = isset($_SESSION['user_id']);
             </div>
         </div>
 
-        <!-- RIGHT: Login / เมนู -->
+        <!-- RIGHT: เมนู -->
         <div class="col-lg-5">
             <div class="d-flex flex-column gap-3">
+
                 <?php if (!$is_logged_in): ?>
                     <!-- Card Login -->
                     <div class="card ios-card p-4">
@@ -268,8 +263,27 @@ $is_logged_in = isset($_SESSION['user_id']);
                         </form>
                     </div>
                 <?php else: ?>
-                    <!-- เมนูสำหรับผู้ล็อกอิน -->
-                    <?php if ($user_role === 'admin'): ?>
+
+                    <!-- ==================== SCOREKEEPER ==================== -->
+                    <?php if ($user_role === 'scorekeeper'): ?>
+                        <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
+                            <div class="card-body d-flex align-items-center p-3">
+                                <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
+                                <div><h6 class="mb-0 fw-bold">บันทึกผลการแข่งขัน</h6><p class="text-muted small mb-0">คีย์คะแนนและเหรียญรางวัล</p></div>
+                                <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                            </div>
+                        </div>
+
+                        <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
+                            <div class="card-body d-flex align-items-center p-3">
+                                <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-user-pen fa-lg"></i></div>
+                                <div><h6 class="mb-0 fw-bold">ปรับปรุงข้อมูลผู้ใช้</h6><p class="text-muted small mb-0">แก้ไขข้อมูลส่วนตัว</p></div>
+                                <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                            </div>
+                        </div>
+
+                    <!-- ==================== ADMIN ==================== -->
+                    <?php elseif ($user_role === 'admin'): ?>
                         <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
                             <div class="card-body d-flex align-items-center p-3">
                                 <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
@@ -277,46 +291,44 @@ $is_logged_in = isset($_SESSION['user_id']);
                                 <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                             </div>
                         </div>
-                    <?php endif; ?>
 
-                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
-                        <div class="card-body d-flex align-items-center p-3">
-                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-palette fa-lg"></i></div>
-                            <div><h6 class="mb-0 fw-bold">จัดการกลุ่มทีมสี</h6><p class="text-muted small mb-0">เพิ่ม/แก้ไขทีมสี</p></div>
-                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
-                        </div>
-                    </div>
-
-                    <?php if ($has_teams): ?>
-                        <div class="card ios-card menu-card border-0" onclick="location.href='manage_categories.php'">
+                        <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
                             <div class="card-body d-flex align-items-center p-3">
-                                <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-folder-open fa-lg"></i></div>
-                                <div><h6 class="mb-0 fw-bold">จัดการประเภทกีฬา</h6><p class="text-muted small mb-0">จัดการกลุ่มกีฬา</p></div>
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-palette fa-lg"></i></div>
+                                <div><h6 class="mb-0 fw-bold">จัดการกลุ่มทีมสี</h6><p class="text-muted small mb-0">เพิ่ม/แก้ไขทีมสี</p></div>
                                 <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                             </div>
                         </div>
 
-                        <?php if ($has_categories): ?>
-                            <div class="card ios-card menu-card border-0" onclick="location.href='manage_matches.php'">
+                        <?php if ($has_teams): ?>
+                            <div class="card ios-card menu-card border-0" onclick="location.href='manage_categories.php'">
                                 <div class="card-body d-flex align-items-center p-3">
-                                    <div class="bg-success bg-opacity-10 text-success rounded-4 p-3 me-3"><i class="fa-solid fa-person-running fa-lg"></i></div>
-                                    <div><h6 class="mb-0 fw-bold">จัดการรายการแข่งขัน</h6><p class="text-muted small mb-0">สร้างรายการแข่ง</p></div>
+                                    <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-folder-open fa-lg"></i></div>
+                                    <div><h6 class="mb-0 fw-bold">จัดการประเภทกีฬา</h6><p class="text-muted small mb-0">จัดการกลุ่มประเภท</p></div>
                                     <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                                 </div>
                             </div>
 
-                            <?php if ($has_matches): ?>
-                                <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
+                            <?php if ($has_categories): ?>
+                                <div class="card ios-card menu-card border-0" onclick="location.href='manage_matches.php'">
                                     <div class="card-body d-flex align-items-center p-3">
-                                        <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
-                                        <div><h6 class="mb-0 fw-bold">บันทึกผลการแข่งขัน</h6><p class="text-muted small mb-0">บันทึกคะแนน</p></div>
+                                        <div class="bg-success bg-opacity-10 text-success rounded-4 p-3 me-3"><i class="fa-solid fa-person-running fa-lg"></i></div>
+                                        <div><h6 class="mb-0 fw-bold">จัดการรายการแข่งขัน</h6><p class="text-muted small mb-0">สร้างและแก้ไขรายการ</p></div>
                                         <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                                     </div>
                                 </div>
-                            <?php endif; ?>
-                        <?php endif; ?>
 
-                        <?php if ($user_role === 'admin'): ?>
+                                <?php if ($has_matches): ?>
+                                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
+                                        <div class="card-body d-flex align-items-center p-3">
+                                            <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
+                                            <div><h6 class="mb-0 fw-bold">บันทึกผลการแข่งขัน</h6><p class="text-muted small mb-0">บันทึกคะแนน</p></div>
+                                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+
                             <div class="card ios-card menu-card border-0 bg-danger bg-opacity-10" onclick="if(confirm('⚠️ ยืนยันล้างข้อมูลทั้งระบบ?')) location.href='reset_system.php';">
                                 <div class="card-body d-flex align-items-center p-3">
                                     <div class="bg-danger bg-opacity-20 text-danger rounded-4 p-3 me-3"><i class="fa-solid fa-trash-can fa-lg"></i></div>
@@ -325,19 +337,22 @@ $is_logged_in = isset($_SESSION['user_id']);
                                 </div>
                             </div>
                         <?php endif; ?>
-                    <?php endif; ?>
 
-                    <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
-                        <div class="card-body d-flex align-items-center p-3">
-                            <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-user-pen fa-lg"></i></div>
-                            <div><h6 class="mb-0 fw-bold">ปรับปรุงข้อมูลผู้ใช้</h6><p class="text-muted small mb-0">แก้ไขชื่อ-รหัสผ่าน</p></div>
-                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
+                            <div class="card-body d-flex align-items-center p-3">
+                                <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-user-pen fa-lg"></i></div>
+                                <div><h6 class="mb-0 fw-bold">ปรับปรุงข้อมูลผู้ใช้</h6><p class="text-muted small mb-0">แก้ไขข้อมูลส่วนตัว</p></div>
+                                <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                            </div>
                         </div>
-                    </div>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
     </div>
+
+    <!-- สรุปผลการแข่งขันตามประเภทกีฬา + ปฏิทินการแข่งขัน (เหมือนเดิม) -->
+    <!-- (ส่วนนี้คงเดิมจากโค้ดก่อนหน้า) -->
 
     <!-- สรุปผลการแข่งขันตามประเภทกีฬา -->
     <div class="row g-4 mb-4">
@@ -348,17 +363,10 @@ $is_logged_in = isset($_SESSION['user_id']);
                         <i class="fa-solid fa-trophy text-success me-2"></i>
                         สรุปผลการแข่งขันตามประเภทกีฬา
                     </h5>
-
+                    <!-- โค้ดสรุปตามประเภทกีฬา (เหมือนโค้ดก่อนหน้า) -->
                     <?php
                     $sql_category = "
-                        SELECT 
-                            c.category_name,
-                            m.sport_name,
-                            m.gender_type,
-                            t.team_name,
-                            t.team_color,
-                            r.medal,
-                            r.points
+                        SELECT c.category_name, m.sport_name, m.gender_type, t.team_name, t.team_color, r.medal, r.points
                         FROM match_results r
                         JOIN matches m ON r.match_id = m.id
                         JOIN sport_categories c ON m.category_id = c.id
