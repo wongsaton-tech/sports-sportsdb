@@ -317,6 +317,45 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     </div>
                 </div>
                 <?php endif; ?>
+                <div class="col-lg-5">
+    <div class="d-flex flex-column gap-2 h-100 justify-content-start">
+        
+        <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
+        <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
+            <div class="card-body d-flex align-items-center p-3">
+                <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
+                <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนขึ้นบอร์ด</p></div>
+                <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($user_role == 'admin'): ?>
+            <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
+                    <div><h6 class="mb-0 fw-bold text-dark">จัดการผู้ใช้งาน</h6><p class="mb-0 text-muted small">เพิ่ม/ลบ สิทธิ์เจ้าหน้าที่และกรรมการ</p></div>
+                    <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
+                </div>
+            </div>
+
+            <div class="card ios-card menu-card border-0" onclick="confirmReset()">
+                <div class="card-body d-flex align-items-center p-3 text-danger">
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-4 p-3 me-3"><i class="fa-solid fa-trash-can fa-lg"></i></div>
+                    <div><h6 class="mb-0 fw-bold">ล้างข้อมูลการแข่งขันทั้งหมด</h6><p class="mb-0 text-danger small">รีเซ็ตคะแนนและตารางแข่ง (คงเหลือแค่ User)</p></div>
+                </div>
+            </div>
+
+            <script>
+            function confirmReset() {
+                if (confirm('⚠️ คำเตือน: คุณต้องการล้างข้อมูลการแข่งขันทั้งหมดใช่หรือไม่? ข้อมูลนี้ไม่สามารถกู้คืนได้')) {
+                    window.location.href = 'reset_system.php';
+                }
+            }
+            </script>
+        <?php endif; ?>
+        </div>
+</div>
 
                 <?php if ($user_role == 'guest'): ?>
                     <div class="p-4 rounded-4 border border-dashed text-center text-muted small bg-white shadow-sm h-100 d-flex flex-column align-items-center justify-content-center">
