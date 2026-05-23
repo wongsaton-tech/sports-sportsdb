@@ -8,11 +8,7 @@ $current_time = date('Y-m-d H:i:s');
 $success_msg = "";
 $login_error = "";
 
-if (isset($_GET['success']) && $_GET['success'] === 'reset') {
-    $success_msg = "✅ รีเซ็ตระบบเรียบร้อยแล้ว!";
-}
-
-// ==================== จัดการ Login จากหน้า Dashboard ====================
+// ==================== Login จากหน้า Dashboard ====================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dashboard_login'])) {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
@@ -28,18 +24,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dashboard_login'])) {
                 $_SESSION['user_username'] = $user['username'];
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['user_role'] = $user['role'];
-
                 header("Location: index.php");
                 exit();
             } else {
                 $login_error = "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
             }
         } catch (\PDOException $e) {
-            $login_error = "เกิดข้อผิดพลาด: " . $e->getMessage();
+            $login_error = "เกิดข้อผิดพลาดระบบ";
         }
     } else {
-        $login_error = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+        $login_error = "กรุณากรอกข้อมูลให้ครบถ้วน";
     }
+}
+
+if (isset($_GET['success']) && $_GET['success'] === 'reset') {
+    $success_msg = "✅ รีเซ็ตระบบเรียบร้อยแล้ว!";
 }
 
 // ตรวจสอบข้อมูลสำหรับควบคุมเมนู
@@ -48,20 +47,26 @@ $has_categories = $pdo->query("SELECT COUNT(*) FROM sport_categories")->fetchCol
 $has_matches = $pdo->query("SELECT COUNT(*) FROM matches")->fetchColumn() > 0;
 
 try {
+    // =========================
     // สรุปคะแนนทีมสี
+    // =========================
     $sql_scores = "
-        SELECT t.id, t.team_name, t.team_color,
-               SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
-               SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
-               SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
-               COALESCE(SUM(r.points), 0) as total_points
-        FROM teams t LEFT JOIN match_results r ON t.id = r.team_id
+        SELECT 
+            t.id, t.team_name, t.team_color,
+            SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
+            SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
+            SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
+            COALESCE(SUM(r.points), 0) as total_points
+        FROM teams t
+        LEFT JOIN match_results r ON t.id = r.team_id
         GROUP BY t.id, t.team_name, t.team_color
         ORDER BY total_points DESC, gold_count DESC, t.id ASC
     ";
     $teams_dashboard = $pdo->query($sql_scores)->fetchAll();
 
-    // ปฏิทินการแข่งขัน (โค้ดเดิม)
+    // =========================
+    // ปฏิทินการแข่งขัน
+    // =========================
     $sql_matches = "
         SELECT m.*, c.category_name, COUNT(r.id) as is_finished
         FROM matches m
@@ -72,15 +77,49 @@ try {
     ";
     $all_matches = $pdo->query($sql_matches)->fetchAll();
 
-    // ... (ส่วน logic ปฏิทินเหมือนเดิม - ย่อเพื่อความกระชับ)
     $upcoming_list = [];
     $finished_list = [];
+
     foreach ($all_matches as $match) {
-        // logic เดิม...
-        $match['status_label'] = 'ยังไม่ถึงวันแข่งขัน';
-        $match['status_class'] = 'bg-secondary bg-opacity-10 text-secondary';
-        // ... (สามารถคัดลอกส่วน logic ปฏิทินจากโค้ดเก่า)
+        $match_time = $match['match_datetime'];
+        $status_label = 'ยังไม่ถึงวันแข่งขัน';
+        $status_class = 'bg-secondary bg-opacity-10 text-secondary';
+
+        if ($match['is_finished'] > 0) {
+            $status_label = 'จบการแข่งขัน';
+            $status_class = 'bg-dark bg-opacity-10 text-dark';
+        } elseif (!empty($match_time)) {
+            $time_diff = strtotime($match_time) - strtotime($current_time);
+            if ($time_diff < 0) {
+                if (abs($time_diff) <= 7200) {
+                    $status_label = 'กำลังแข่งขัน';
+                    $status_class = 'bg-danger text-white animate-pulse';
+                } else {
+                    $status_label = 'รอการบันทึกผล';
+                    $status_class = 'bg-warning bg-opacity-20 text-warning-emphasis';
+                }
+            } elseif ($time_diff <= 86400) {
+                $status_label = 'ใกล้ถึงวันแข่งขัน';
+                $status_class = 'bg-info bg-opacity-10 text-info';
+            }
+        }
+
+        $match['status_label'] = $status_label;
+        $match['status_class'] = $status_class;
+
+        if ($status_label == 'จบการแข่งขัน') {
+            $finished_list[] = $match;
+        } else {
+            $upcoming_list[] = $match;
+        }
     }
+
+    usort($upcoming_list, function($a, $b) {
+        if (empty($a['match_datetime'])) return 1;
+        if (empty($b['match_datetime'])) return -1;
+        return strtotime($a['match_datetime']) - strtotime($b['match_datetime']);
+    });
+
     $calendar_timeline = array_merge($upcoming_list, $finished_list);
 
 } catch (\PDOException $e) {
@@ -118,7 +157,26 @@ $is_logged_in = isset($_SESSION['user_id']);
 <nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-3">
     <div class="container">
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
-        <!-- Navbar เดิม -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link active" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <?php if ($is_logged_in): ?>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger fw-bold" href="logout.php" onclick="return confirm('คุณต้องการออกจากระบบใช่หรือไม่?');">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                <?php else: ?>
+                    <li class="nav-item">
+                        <a class="nav-link text-success fw-bold" href="login.php">
+                            <i class="fa-solid fa-right-to-bracket me-1"></i> หน้าเข้าสู่ระบบ
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </div>
     </div>
 </nav>
 
@@ -136,60 +194,185 @@ $is_logged_in = isset($_SESSION['user_id']);
     </div>
 
     <div class="row g-4 mb-4">
-        <!-- LEFT: บอร์ดสรุปเหรียญ -->
+        <!-- LEFT: บอร์ดสรุปเหรียญรางวัล -->
         <div class="col-lg-7">
             <div class="card ios-card p-2 h-100">
-                <!-- โค้ดบอร์ดสรุปเหรียญเหมือนเดิม -->
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัล</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="text-center">อันดับ</th>
+                                    <th>ทีมสี</th>
+                                    <th class="text-center">🥇</th>
+                                    <th class="text-center">🥈</th>
+                                    <th class="text-center">🥉</th>
+                                    <th class="text-center">คะแนน</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($teams_dashboard as $index => $team): ?>
+                                <tr>
+                                    <td class="text-center">
+                                        <div class="rank-badge mx-auto <?php echo $index == 0 ? 'bg-warning text-dark' : 'bg-secondary bg-opacity-10 text-dark'; ?>">
+                                            <?php echo $index + 1; ?>
+                                        </div>
+                                    </td>
+                                    <td class="fw-bold">
+                                        <span class="badge me-2" style="background-color: <?php echo $team['team_color']; ?>; width:12px;height:12px;border-radius:50%;"></span>
+                                        <?php echo htmlspecialchars($team['team_name']); ?>
+                                    </td>
+                                    <td class="text-center text-warning fw-bold"><?php echo $team['gold_count']; ?></td>
+                                    <td class="text-center text-secondary fw-bold"><?php echo $team['silver_count']; ?></td>
+                                    <td class="text-center text-danger fw-bold"><?php echo $team['bronze_count']; ?></td>
+                                    <td class="text-center text-primary fw-bold"><?php echo $team['total_points']; ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- RIGHT: เมนู / Login Card -->
+        <!-- RIGHT: Login หรือ เมนู -->
         <div class="col-lg-5">
             <div class="d-flex flex-column gap-3">
-
                 <?php if (!$is_logged_in): ?>
-                    <!-- === CARD LOGIN === -->
-                    <div class="card ios-card p-3">
-                        <div class="card-body">
-                            <div class="text-center mb-4">
-                                <i class="fa-solid fa-lock fa-3x text-warning mb-3"></i>
-                                <h5 class="fw-bold">เข้าสู่ระบบสำหรับเจ้าหน้าที่</h5>
-                                <p class="text-muted small">กรุณาล็อกอินเพื่อจัดการระบบ</p>
-                            </div>
-
-                            <?php if(!empty($login_error)): ?>
-                                <div class="alert alert-danger border-0 rounded-3 small"><?php echo $login_error; ?></div>
-                            <?php endif; ?>
-
-                            <form method="POST" action="index.php">
-                                <div class="mb-3">
-                                    <label class="form-label small text-muted fw-bold">ชื่อผู้ใช้งาน</label>
-                                    <input type="text" class="form-control" name="username" placeholder="เช่น admin01" required autocomplete="off">
-                                </div>
-                                <div class="mb-4">
-                                    <label class="form-label small text-muted fw-bold">รหัสผ่าน</label>
-                                    <input type="password" class="form-control" name="password" placeholder="••••••" required>
-                                </div>
-                                <button type="submit" name="dashboard_login" class="btn btn-primary w-100">
-                                    <i class="fa-solid fa-right-to-bracket me-2"></i> เข้าสู่ระบบ
-                                </button>
-                            </form>
-
-                            <div class="text-center mt-3">
-                                <small class="text-muted">หรือ <a href="login.php" class="text-decoration-none">ใช้หน้าเข้าสู่ระบบแบบเต็ม</a></small>
-                            </div>
+                    <!-- Card Login -->
+                    <div class="card ios-card p-4">
+                        <div class="text-center mb-4">
+                            <i class="fa-solid fa-lock fa-3x text-warning mb-3"></i>
+                            <h5 class="fw-bold">เข้าสู่ระบบสำหรับเจ้าหน้าที่</h5>
+                            <p class="text-muted small">กรุณาล็อกอินเพื่อจัดการระบบ</p>
                         </div>
+
+                        <?php if(!empty($login_error)): ?>
+                            <div class="alert alert-danger border-0 rounded-3"><?php echo $login_error; ?></div>
+                        <?php endif; ?>
+
+                        <form method="POST" action="index.php">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted fw-bold">ชื่อผู้ใช้งาน</label>
+                                <input type="text" class="form-control" name="username" placeholder="เช่น admin01" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label small text-muted fw-bold">รหัสผ่าน</label>
+                                <input type="password" class="form-control" name="password" placeholder="••••••" required>
+                            </div>
+                            <button type="submit" name="dashboard_login" class="btn btn-primary w-100">
+                                <i class="fa-solid fa-right-to-bracket me-2"></i> เข้าสู่ระบบ
+                            </button>
+                        </form>
                     </div>
                 <?php else: ?>
-                    <!-- เมนูสำหรับผู้ล็อกอิน (เหมือนโค้ดก่อนหน้า) -->
-                    <!-- ... วางเมนูตามลำดับที่เรียงไว้ก่อนหน้านี้ ... -->
-                <?php endif; ?>
+                    <!-- เมนูสำหรับผู้ล็อกอินแล้ว -->
+                    <?php if ($user_role === 'admin'): ?>
+                        <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
+                            <div class="card-body d-flex align-items-center p-3">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
+                                <div><h6 class="mb-0 fw-bold">จัดการผู้ใช้งานระบบ</h6><p class="text-muted small mb-0">เพิ่ม/แก้ไข/ลบ บัญชี</p></div>
+                                <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
+                    <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-palette fa-lg"></i></div>
+                            <div><h6 class="mb-0 fw-bold">จัดการกลุ่มทีมสี</h6><p class="text-muted small mb-0">เพิ่ม/แก้ไขทีมสี</p></div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+
+                    <?php if ($has_teams): ?>
+                        <div class="card ios-card menu-card border-0" onclick="location.href='manage_categories.php'">
+                            <div class="card-body d-flex align-items-center p-3">
+                                <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-folder-open fa-lg"></i></div>
+                                <div><h6 class="mb-0 fw-bold">จัดการประเภทกีฬา</h6><p class="text-muted small mb-0">จัดการกลุ่มกีฬา</p></div>
+                                <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                            </div>
+                        </div>
+
+                        <?php if ($has_categories): ?>
+                            <div class="card ios-card menu-card border-0" onclick="location.href='manage_matches.php'">
+                                <div class="card-body d-flex align-items-center p-3">
+                                    <div class="bg-success bg-opacity-10 text-success rounded-4 p-3 me-3"><i class="fa-solid fa-person-running fa-lg"></i></div>
+                                    <div><h6 class="mb-0 fw-bold">จัดการรายการแข่งขัน</h6><p class="text-muted small mb-0">สร้างรายการแข่ง</p></div>
+                                    <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                                </div>
+                            </div>
+
+                            <?php if ($has_matches): ?>
+                                <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
+                                    <div class="card-body d-flex align-items-center p-3">
+                                        <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
+                                        <div><h6 class="mb-0 fw-bold">บันทึกผลการแข่งขัน</h6><p class="text-muted small mb-0">บันทึกคะแนน</p></div>
+                                        <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php if ($user_role === 'admin'): ?>
+                            <div class="card ios-card menu-card border-0 bg-danger bg-opacity-10" onclick="if(confirm('⚠️ ยืนยันล้างข้อมูลทั้งระบบ?')) location.href='reset_system.php';">
+                                <div class="card-body d-flex align-items-center p-3">
+                                    <div class="bg-danger bg-opacity-20 text-danger rounded-4 p-3 me-3"><i class="fa-solid fa-trash-can fa-lg"></i></div>
+                                    <div><h6 class="mb-0 fw-bold text-danger">ล้างข้อมูลทั้งระบบ</h6><p class="text-muted small mb-0">รีเซ็ตฐานข้อมูล</p></div>
+                                    <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+
+                    <!-- แก้ไขข้อมูลส่วนตัว -->
+                    <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-user-pen fa-lg"></i></div>
+                            <div><h6 class="mb-0 fw-bold">ปรับปรุงข้อมูลผู้ใช้</h6><p class="text-muted small mb-0">แก้ไขชื่อ-รหัสผ่าน</p></div>
+                            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
-    <!-- ปฏิทินการแข่งขัน (เหมือนเดิม) -->
+    <!-- ปฏิทินการแข่งขัน -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card ios-card p-2 mb-5">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-4"><i class="fa-solid fa-calendar-days text-success me-2"></i> ปฏิทินการแข่งขัน</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th>วันเวลาแข่งขัน</th>
+                                    <th>รายการแข่งขัน</th>
+                                    <th>ประเภท</th>
+                                    <th class="text-center">จำนวน</th>
+                                    <th class="text-center">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($calendar_timeline as $match): ?>
+                                <tr>
+                                    <td><?php echo !empty($match['match_datetime']) ? date('d/m/Y H:i', strtotime($match['match_datetime'])) . ' น.' : '-'; ?></td>
+                                    <td><div class="fw-bold"><?php echo htmlspecialchars($match['sport_name']); ?></div><small class="text-muted"><?php echo $match['tournament_type']; ?></small></td>
+                                    <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars($match['category_name'] ?? 'ทั่วไป'); ?></span></td>
+                                    <td class="text-center"><?php echo $match['max_players_per_team']; ?></td>
+                                    <td class="text-center"><span class="badge rounded-pill px-3 py-2 <?php echo $match['status_class']; ?>"><?php echo $match['status_label']; ?></span></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
