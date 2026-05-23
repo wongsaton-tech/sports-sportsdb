@@ -78,7 +78,7 @@ $all_users = $pdo->query("SELECT * FROM users ORDER BY role ASC, id DESC")->fetc
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
-                <li class="nav-item"><a class="nav-link" href="index.php">กลับสู่หน้าแดชบอร์ด</a></li>
+                <li class="nav-item"><a class="nav-link" href="index.php">แดชบอร์ด</a></li>
             </ul>
         </div>
     </div>
