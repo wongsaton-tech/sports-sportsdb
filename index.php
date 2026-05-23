@@ -8,16 +8,16 @@ $current_time = date('Y-m-d H:i:s');
 
 try {
     // ------------------------------------------------------------------
-    // ส่วนที่ 1: คำนวณสรุปเหรียญรางวัลของแต่ละทีมสีบนบอร์ด
+    // ส่วนที่ 1: ดึงข้อมูลกลุ่มสีและคำนวณคะแนน (ปรับตามตารางจริงใน DBeaver)
     // ------------------------------------------------------------------
-    $sql_scores = "SELECT t.id, t.team_name, t.team_color,
+    $sql_scores = "SELECT t.id, t.team_name, t.color,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
             SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
             SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
             COALESCE(SUM(r.points), 0) as total_points
             FROM teams t
             LEFT JOIN match_results r ON t.id = r.team_id
-            GROUP BY t.id, t.team_name, t.team_color
+            GROUP BY t.id, t.team_name, t.color
             ORDER BY total_points DESC, gold_count DESC, t.id ASC";
             
     $stmt_scores = $pdo->query($sql_scores);
@@ -32,12 +32,12 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // ส่วนที่ 2: ปรับปรุงการดึงข้อมูลแมตช์มาทำปฏิทินไทม์ไลน์ (เวอร์ชัน Safe-Mode ยืดหยุ่นสูงสุด)
+    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ปรับใช้ match_name และ date_time ตามตารางจริง)
     // ------------------------------------------------------------------
     $sql_matches = "SELECT m.*, 
                     (SELECT COUNT(*) FROM match_results r WHERE r.match_id = m.id) as is_finished
                     FROM matches m 
-                    ORDER BY m.match_datetime ASC";
+                    ORDER BY m.date_time ASC";
     
     $all_matches = $pdo->query($sql_matches)->fetchAll();
 
@@ -45,8 +45,7 @@ try {
     $finished_list = [];
 
     foreach ($all_matches as $match) {
-        // รองรับกรณีชื่อคอลัมน์วันเวลาอาจจะใช้ match_datetime หรือ date_time
-        $match_time = isset($match['match_datetime']) ? $match['match_datetime'] : (isset($match['date_time']) ? $match['date_time'] : '');
+        $match_time = isset($match['date_time']) ? $match['date_time'] : '';
         $status_label = 'ยังไม่ถึงวันแข่งขัน';
         $status_class = 'bg-secondary bg-opacity-10 text-secondary';
         
@@ -66,7 +65,6 @@ try {
                     $status_class = 'bg-warning bg-opacity-20 text-warning-emphasis';
                 }
             } else if ($time_diff <= 86400) {
-                // เหลือเวลาอีกไม่ถึง 24 ชั่วโมงก่อนเริ่มแข่ง
                 $status_label = 'ใกล้ถึงวันแข่งขัน';
                 $status_class = 'bg-info bg-opacity-10 text-info';
             }
@@ -76,7 +74,6 @@ try {
         $match['status_label'] = $status_label;
         $match['status_class'] = $status_class;
 
-        // แยกกลุ่ม: จบการแข่งขันไปอยู่ท้ายสุด ส่วนที่เหลืออยู่กลุ่มบน
         if ($status_label == 'จบการแข่งขัน') {
             $finished_list[] = $match;
         } else {
@@ -91,16 +88,14 @@ try {
         return strtotime($a['computed_time']) - strtotime($b['computed_time']);
     });
 
-    // ยุบรวม 2 กลุ่มเข้าด้วยกัน (Upcoming อยู่บน เสมอ และ Finished ต่อท้ายลงไป)
+    // ยุบรวม 2 กลุ่มเข้าด้วยกัน (Upcoming อยู่บน เสมอ และ Finished ต่อท้ายลงไปข้างล่าง)
     $calendar_timeline = array_merge($upcoming_list, $finished_list);
 
 } catch (\PDOException $e) {
-    $teams_dashboard = [];
-    $calendar_timeline = [];
-    $has_scores = false;
+    die("<div class='container mt-5 alert alert-danger text-center'>เกิดข้อผิดพลาดในการเชื่อมโยงระบบฐานข้อมูล: " . $e->getMessage() . "</div>");
 }
 
-// ตรวจสอบสิทธิ์จาก Session ปัจจุบัน (ถ้าไม่ได้ล็อกอินจะเป็น guest อัตโนมัติ)
+// ตรวจสอบสถานะสิทธิ์จาก Session
 $user_role = isset($_SESSION['user_role']) ? $_SESSION['user_role'] : 'guest';
 $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุคคลทั่วไป';
 ?>
@@ -276,7 +271,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                             <div class="rank-badge mx-auto <?php echo $bg_badge; ?>"><?php echo $index + 1; ?></div>
                                         </td>
                                         <td class="fw-bold">
-                                            <span class="badge me-2" style="background-color: <?php echo $team['team_color']; ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
+                                            <span class="badge me-2" style="background-color: <?php echo $team['color']; ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
                                             <?php echo htmlspecialchars($team['team_name']); ?>
                                         </td>
                                         <td class="text-center fw-bold text-warning"><?php echo $team['gold_count']; ?></td>
@@ -348,7 +343,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4 px-2">
                         <h5 class="fw-bold m-0"><i class="fa-solid fa-calendar-days text-success me-2"></i> ปฏิทินไทม์ไลน์กำหนดการแข่งขันกีฬาสี</h5>
-                        <span class="small text-muted"><i class="fa-regular fa-clock me-1"></i> ข้อมูลอัปเดตเรียลไทม์</span>
+                        <span class="small text-muted"><i class="fa-regular fa-clock me-1"></i> ข้อมูลสรุปอัปเดตเรียลไทม์</span>
                     </div>
 
                     <div class="table-responsive">
@@ -375,7 +370,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                         </td>
                                         <td>
                                             <span class="fw-bold text-dark">
-                                                <?php echo htmlspecialchars($match['sport_name'] ?? $match['match_name'] ?? 'รายการแข่งขัน'); ?>
+                                                <?php echo htmlspecialchars($match['match_name'] ?? 'รายการแข่งขัน'); ?>
                                             </span>
                                             <?php if(isset($match['gender_type'])): ?>
                                                 <span class="badge bg-light text-dark font-monospace mx-1"><?php echo $match['gender_type']; ?></span>
