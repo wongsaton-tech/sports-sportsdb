@@ -8,16 +8,16 @@ $current_time = date('Y-m-d H:i:s');
 
 try {
     // ------------------------------------------------------------------
-    // ส่วนที่ 1: ดีกพิกัดตารางทีมสีตาม DBeaver (ใช้ team_name และ color)
+    // ส่วนที่ 1: ดึงเฉพาะคอลัมน์ id และ team_name (Safe-Mode บล็อก Error เรื่องคอลัมน์สี)
     // ------------------------------------------------------------------
-    $sql_scores = "SELECT t.id, t.team_name, t.color,
+    $sql_scores = "SELECT t.id, t.team_name,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
             SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
             SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
             COALESCE(SUM(r.points), 0) as total_points
             FROM teams t
             LEFT JOIN match_results r ON t.id = r.team_id
-            GROUP BY t.id, t.team_name, t.color
+            GROUP BY t.id, t.team_name
             ORDER BY total_points DESC, gold_count DESC, t.id ASC";
             
     $stmt_scores = $pdo->query($sql_scores);
@@ -32,7 +32,7 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ใช้ match_name และ date_time)
+    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ใช้ match_name และ date_time คอนเฟิร์มตาม DBeaver)
     // ------------------------------------------------------------------
     $sql_matches = "SELECT m.*, 
                     (SELECT COUNT(*) FROM match_results r WHERE r.match_id = m.id) as is_finished
@@ -92,6 +92,19 @@ try {
 
 } catch (\PDOException $e) {
     die("<div class='container mt-5 alert alert-danger text-center'>เกิดข้อผิดพลาดในการเชื่อมโยงระบบฐานข้อมูล: " . $e->getMessage() . "</div>");
+}
+
+// ฟังก์ชันจำลองสีระบบอัตโนมัติ เพื่อป้องกันฐานข้อมูลไม่มีคอลัมน์สีซัพพอร์ต
+function getDynamicColor($team_id) {
+    $colors = [
+        1 => '#ff3b30', // แดง / โกเมน
+        2 => '#34c759', // เขียว / มรกต
+        3 => '#ffcc00', // เหลือง / บุษราคัม
+        4 => '#007aff', // น้ำเงิน
+        5 => '#af52de', // ม่วง
+        6 => '#ff9500'  // ส้ม
+    ];
+    return $colors[$team_id] ?? '#8e8e93';
 }
 
 // ตรวจสอบสถานะสิทธิ์จาก Session
@@ -218,7 +231,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                             <div class="rank-badge mx-auto <?php echo $bg_badge; ?>"><?php echo $index + 1; ?></div>
                                         </td>
                                         <td class="fw-bold">
-                                            <span class="badge me-2" style="background-color: <?php echo $team['color']; ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
+                                            <span class="badge me-2" style="background-color: <?php echo getDynamicColor($team['id']); ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
                                             <?php echo htmlspecialchars($team['team_name']); ?>
                                         </td>
                                         <td class="text-center fw-bold text-warning"><?php echo $team['gold_count']; ?></td>
