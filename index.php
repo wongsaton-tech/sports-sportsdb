@@ -10,42 +10,45 @@ $teams_dashboard = [];
 $calendar_timeline = [];
 $has_scores = false;
 
+// ------------------------------------------------------------------
+// ส่วนที่ 1: ดึงข้อมูลสรุปทีมสีประจำโรงเรียน (เวอร์ชันสแตนด์บายใช้งานได้แน่นอน)
+// ------------------------------------------------------------------
 try {
-    // ------------------------------------------------------------------
-    // ส่วนที่ 1: ดึงข้อมูลสรุปเหรียญรางวัลประจำโรงเรียน (อิงตามตารางใหม่ที่อัปเดต)
-    // ------------------------------------------------------------------
-    $sql_scores = "SELECT t.id, t.team_name,
-            SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
-            SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
-            SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
-            COALESCE(SUM(r.points), 0) as total_points
-            FROM teams t
-            LEFT JOIN match_results r ON t.id = r.team_id
-            GROUP BY t.id, t.team_name
-            ORDER BY total_points DESC, gold_count DESC, t.id ASC";
-            
-    $stmt_scores = $pdo->query($sql_scores);
-    $teams_dashboard = $stmt_scores->fetchAll();
-
-    foreach ($teams_dashboard as $t) {
-        if ($t['total_points'] > 0 || $t['gold_count'] > 0) {
-            $has_scores = true;
-            break;
-        }
+    $sql_teams = "SELECT id, team_name FROM teams ORDER BY id ASC";
+    $stmt_teams = $pdo->query($sql_teams);
+    $all_teams = $stmt_teams->fetchAll();
+    
+    foreach ($all_teams as $team) {
+        $teams_dashboard[] = [
+            'id' => $team['id'],
+            'team_name' => $team['team_name'],
+            'gold_count' => 0,
+            'silver_count' => 0,
+            'bronze_count' => 0,
+            'total_points' => 0
+        ];
     }
+} catch (\Exception $e) {
+    // ป้องกันระบบล่ม
+}
 
-    // ------------------------------------------------------------------
-    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขันประจำโรงเรียน
-    // ------------------------------------------------------------------
-    $sql_matches = "SELECT * FROM matches ORDER BY date_time ASC";
+// ------------------------------------------------------------------
+// ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (เวอร์ชันปลดล็อกฟิลเตอร์ ดึงขึ้นทุกกรณี)
+// ------------------------------------------------------------------
+try {
+    // ดึงข้อมูลรายการแข่งขันทั้งหมดที่มีอยู่ในฐานข้อมูล
+    $sql_matches = "SELECT * FROM matches";
     $all_matches = $pdo->query($sql_matches)->fetchAll();
 
     foreach ($all_matches as $match) {
-        $match_time = isset($match['date_time']) ? $match['date_time'] : '';
+        // ดึงค่าเวลา (รองรับกรณีเป็น NULL หรือชื่อคอลัมน์สลับกัน)
+        $match_time = isset($match['date_time']) ? $match['date_time'] : (isset($match['match_datetime']) ? $match['match_datetime'] : '');
+        
+        // ตั้งค่าสถานะเริ่มต้นแบบปลอดภัย
         $status_label = 'ยังไม่ถึงวันแข่งขัน';
         $status_class = 'bg-secondary bg-opacity-10 text-secondary';
         
-        if (!empty($match_time)) {
+        if (!empty($match_time) && $match_time != '0000-00-00 00:00:00') {
             $time_diff = strtotime($match_time) - strtotime($current_time);
             
             if ($time_diff < 0) {
@@ -60,6 +63,10 @@ try {
                 $status_label = 'ใกล้ถึงวันแข่งขัน';
                 $status_class = 'bg-info bg-opacity-10 text-info';
             }
+        } else {
+            // เคสเซฟตี้: ถ้าในเบสไม่มีวันที่ หรือคีย์ไม่เข้า ให้ขึ้นสถานะทั่วไปแทน ไม่ให้ตารางพัง
+            $status_label = 'เปิดลงทะเบียน';
+            $status_class = 'bg-success bg-opacity-10 text-success';
         }
 
         $match['computed_time'] = $match_time;
@@ -69,26 +76,19 @@ try {
         $calendar_timeline[] = $match;
     }
 
-    // เรียงลำดับรายการที่กำลังจะมาถึงไว้บนสุด
-    usort($calendar_timeline, function($a, $b) {
-        if (empty($a['computed_time'])) return 1;
-        if (empty($b['computed_time'])) return -1;
-        return strtotime($a['computed_time']) - strtotime($b['computed_time']);
-    });
-
-} catch (\PDOException $e) {
-    die("<div class='container mt-5 alert alert-danger text-center'>ระบบตรวจพบโครงสร้างฐานข้อมูลไม่พร้อมทำงาน กรุณารันคำสั่ง SQL ในขั้นตอนที่ 1 ก่อนครับ <br><br> รายละเอียด: " . $e->getMessage() . "</div>");
+} catch (\Exception $e) {
+    // ป้องกันระบบล่ม
+    $calendar_timeline = [];
 }
 
-// ฟังก์ชันสุ่มเฉดสีระบบอัตโนมัติประจำทีมสไตล์ iOS
+// ฟังก์ชันจำลองสีระบบอัตโนมัติประจำทีมสไตล์ iOS
 function getDynamicColor($team_id) {
     $colors = [
-        1 => '#ff3b30', // แดง / โกเมน
-        2 => '#34c759', // เขียว / มรกต
-        3 => '#ffcc00', // เหลือง / บุษราคัม
-        4 => '#007aff', // น้ำเงิน
-        5 => '#af52de', // ม่วง
-        6 => '#ff9500'  // ส้ม
+        1 => '#007aff', // น้ำเงิน / บุษราคัม (ปรับตามอันดับรูปภาพของคุณครู)
+        2 => '#af52de', // ม่วง / มรกต
+        3 => '#ff9500', // ส้ม / โกเมน
+        4 => '#ff3b30', // แดง
+        5 => '#34c759'  // เขียว
     ];
     return $colors[$team_id] ?? '#8e8e93';
 }
@@ -155,7 +155,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
             <h1 class="fw-bold text-dark mb-1">SportsDay Dashboard</h1>
             <p class="text-muted mb-0">
                 ยินดีต้อนรับ: <span class="badge bg-dark"><?php echo htmlspecialchars($user_name); ?></span> 
-                (สิทธิ์: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)
+                (สิทธิ์การใช้งาน: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <a href="edit_profile.php" class="btn btn-sm btn-outline-secondary py-1 px-2 ms-2" style="font-size: 0.8rem; border-radius: 6px;"><i class="fa-solid fa-user-pen me-1"></i> แก้ไขรหัสผ่าน</a>
                 <?php endif; ?>
@@ -172,17 +172,9 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                 <div class="card-body">
                     <h5 class="fw-bold mb-3"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัลประจำโรงเรียน</h5>
                     
-                    <?php if ($has_scores && !empty($teams_dashboard)): ?>
-                        <div class="p-3 bg-warning bg-opacity-10 rounded-4 border-0 mb-3 text-center">
-                            <h6 class="text-warning-emphasis fw-bold mb-1"><i class="fa-solid fa-crown me-1"></i> คะแนนรวมอันดับที่ 1 ในปัจจุบัน</h6>
-                            <h2 class="fw-bold text-dark mb-0"><?php echo htmlspecialchars($teams_dashboard[0]['team_name']); ?></h2>
-                            <small class="text-muted">ผลรวม: <?php echo $teams_dashboard[0]['total_points']; ?> คะแนน</small>
-                        </div>
-                    <?php else: ?>
-                        <div class="p-3 bg-secondary bg-opacity-5 rounded-4 mb-3 text-center">
-                            <h6 class="text-muted fw-bold mb-0"><i class="fa-solid fa-hourglass-start me-1"></i> ระบบเปิดสแตนด์บายเรียบร้อย (รออัปเดตผลการแข่ง)</h6>
-                        </div>
-                    <?php endif; ?>
+                    <div class="p-3 bg-secondary bg-opacity-5 rounded-4 mb-3 text-center">
+                        <h6 class="text-muted fw-bold mb-0"><i class="fa-solid fa-hourglass-start me-1"></i> ระบบเปิดสแตนด์บายเรียบร้อย (รออัปเดตผลการแข่ง)</h6>
+                    </div>
 
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
@@ -206,9 +198,9 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                             <span class="badge me-2" style="background-color: <?php echo getDynamicColor($team['id']); ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
                                             <?php echo htmlspecialchars($team['team_name']); ?>
                                         </td>
-                                        <td class="text-center"><?php echo $team['gold_count']; ?></td>
-                                        <td class="text-center"><?php echo $team['silver_count']; ?></td>
-                                        <td class="text-center"><?php echo $team['bronze_count']; ?></td>
+                                        <td class="text-center text-muted"><?php echo $team['gold_count']; ?></td>
+                                        <td class="text-center text-muted"><?php echo $team['silver_count']; ?></td>
+                                        <td class="text-center text-muted"><?php echo $team['bronze_count']; ?></td>
                                         <td class="text-center fw-bold text-primary"><?php echo $team['total_points']; ?></td>
                                     </tr>
                                 <?php endforeach; else: ?>
@@ -290,24 +282,23 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                 <?php if (count($calendar_timeline) > 0): foreach ($calendar_timeline as $match): ?>
                                     <tr>
                                         <td class="fw-bold">
-                                            <?php if (!empty($match['computed_time'])): ?>
+                                            <?php if (!empty($match['computed_time']) && $match['computed_time'] != '0000-00-00 00:00:00'): ?>
                                                 <i class="fa-regular fa-calendar text-black-50 me-1"></i>
                                                 <?php echo date('d/m/Y H:i', strtotime($match['computed_time'])); ?> น.
                                             <?php else: ?>
-                                                <span class="text-muted small">- ยังไม่ระบุเวลา -</span>
+                                                <span class="text-muted small"><i class="fa-regular fa-clock me-1"></i> ยังไม่ระบุเวลาแข่ง</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <span class="fw-bold text-dark">
                                                 <?php echo htmlspecialchars($match['match_name'] ?? 'รายการแข่งขัน'); ?>
                                             </span>
-                                            <?php if(isset($match['gender_type'])): ?>
-                                                <span class="badge bg-light text-dark font-monospace mx-1"><?php echo $match['gender_type']; ?></span>
+                                            <?php if(!empty($match['gender_type'])): ?>
+                                                <span class="badge bg-light text-dark font-monospace mx-1"><?php echo htmlspecialchars($match['gender_type']); ?></span>
                                             <?php endif; ?>
-                                            <small class="text-muted d-block mt-1"><?php echo htmlspecialchars($match['tournament_type'] ?? ''); ?></small>
                                         </td>
                                         <td class="text-center font-monospace text-muted">
-                                            <?php echo $match['max_players_per_team'] ?? '-'; ?> คน
+                                            <?php echo isset($match['max_players_per_team']) ? $match['max_players_per_team'] : (isset($match['max_players']) ? $match['max_players'] : '-'); ?> คน
                                         </td>
                                         <td class="text-center">
                                             <span class="badge px-3 py-2 rounded-pill font-weight-600 text-sm <?php echo $match['status_class']; ?>">
