@@ -32,14 +32,11 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // ส่วนที่ 2: ดึงข้อมูลแมตช์มาทำปฏิทินไทม์ไลน์ และจัดกลุ่ม/เรียงลำดับตามเงื่อนไข
+    // ส่วนที่ 2: ปรับปรุงการดึงข้อมูลแมตช์มาทำปฏิทินไทม์ไลน์ (เวอร์ชัน Safe-Mode ยืดหยุ่นสูงสุด)
     // ------------------------------------------------------------------
-    $sql_matches = "SELECT m.*, c.category_name, 
-                    COUNT(r.id) as is_finished
+    $sql_matches = "SELECT m.*, 
+                    (SELECT COUNT(*) FROM match_results r WHERE r.match_id = m.id) as is_finished
                     FROM matches m 
-                    LEFT JOIN sport_categories c ON m.category_id = c.id 
-                    LEFT JOIN match_results r ON m.id = r.match_id
-                    GROUP BY m.id
                     ORDER BY m.match_datetime ASC";
     
     $all_matches = $pdo->query($sql_matches)->fetchAll();
@@ -48,7 +45,8 @@ try {
     $finished_list = [];
 
     foreach ($all_matches as $match) {
-        $match_time = $match['match_datetime'];
+        // รองรับกรณีชื่อคอลัมน์วันเวลาอาจจะใช้ match_datetime หรือ date_time
+        $match_time = isset($match['match_datetime']) ? $match['match_datetime'] : (isset($match['date_time']) ? $match['date_time'] : '');
         $status_label = 'ยังไม่ถึงวันแข่งขัน';
         $status_class = 'bg-secondary bg-opacity-10 text-secondary';
         
@@ -56,7 +54,7 @@ try {
             $status_label = 'จบการแข่งขัน';
             $status_class = 'bg-dark bg-opacity-10 text-dark';
         } else if (!empty($match_time)) {
-            $time_diff = strtotime($match_time) - strtotime($current_time); // หน่วยเป็นวินาที
+            $time_diff = strtotime($match_time) - strtotime($current_time);
             
             if ($time_diff < 0) {
                 // เกินเวลาเริ่มมาแล้วแต่ยังไม่มีการบันทึกผล สมมติว่ากำลังแข่งขันอยู่ (ภายในช่วง 2 ชั่วโมง)
@@ -74,6 +72,7 @@ try {
             }
         }
 
+        $match['computed_time'] = $match_time;
         $match['status_label'] = $status_label;
         $match['status_class'] = $status_class;
 
@@ -87,9 +86,9 @@ try {
 
     // เรียงกลุ่มที่ยังไม่แข่ง (Upcoming) ให้วันที่ใกล้จะถึงที่สุดอยู่บนสุด
     usort($upcoming_list, function($a, $b) {
-        if (empty($a['match_datetime'])) return 1;
-        if (empty($b['match_datetime'])) return -1;
-        return strtotime($a['match_datetime']) - strtotime($b['match_datetime']);
+        if (empty($a['computed_time'])) return 1;
+        if (empty($b['computed_time'])) return -1;
+        return strtotime($a['computed_time']) - strtotime($b['computed_time']);
     });
 
     // ยุบรวม 2 กลุ่มเข้าด้วยกัน (Upcoming อยู่บน เสมอ และ Finished ต่อท้ายลงไป)
@@ -367,22 +366,30 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                 <?php if (count($calendar_timeline) > 0): foreach ($calendar_timeline as $match): ?>
                                     <tr style="<?php echo ($match['status_label'] == 'จบการแข่งขัน') ? 'opacity: 0.55; background-color: #fafafa;' : ''; ?>">
                                         <td class="fw-bold">
-                                            <?php if (!empty($match['match_datetime'])): ?>
+                                            <?php if (!empty($match['computed_time'])): ?>
                                                 <i class="fa-regular fa-calendar text-black-50 me-1"></i>
-                                                <?php echo date('d/m/Y H:i', strtotime($match['match_datetime'])); ?> น.
+                                                <?php echo date('d/m/Y H:i', strtotime($match['computed_time'])); ?> น.
                                             <?php else: ?>
                                                 <span class="text-muted small">- ยังไม่ระบุเวลา -</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <span class="fw-bold text-dark"><?php echo htmlspecialchars($match['sport_name']); ?></span>
-                                            <span class="badge bg-light text-dark font-monospace mx-1"><?php echo $match['gender_type']; ?></span>
-                                            <small class="text-muted d-block mt-1"><?php echo $match['tournament_type']; ?></small>
+                                            <span class="fw-bold text-dark">
+                                                <?php echo htmlspecialchars($match['sport_name'] ?? $match['match_name'] ?? 'รายการแข่งขัน'); ?>
+                                            </span>
+                                            <?php if(isset($match['gender_type'])): ?>
+                                                <span class="badge bg-light text-dark font-monospace mx-1"><?php echo $match['gender_type']; ?></span>
+                                            <?php endif; ?>
+                                            <small class="text-muted d-block mt-1"><?php echo htmlspecialchars($match['tournament_type'] ?? ''); ?></small>
                                         </td>
                                         <td>
-                                            <span class="badge bg-light text-secondary border px-2 py-1"><?php echo htmlspecialchars($match['category_name'] ?? 'ทั่วไป'); ?></span>
+                                            <span class="badge bg-light text-secondary border px-2 py-1">
+                                                ID ประเภท: <?php echo htmlspecialchars($match['category_id'] ?? '-'); ?>
+                                            </span>
                                         </td>
-                                        <td class="text-center font-monospace text-muted"><?php echo $match['max_players_per_team']; ?> คน</td>
+                                        <td class="text-center font-monospace text-muted">
+                                            <?php echo $match['max_players_per_team'] ?? '-'; ?> คน
+                                        </td>
                                         <td class="text-center">
                                             <span class="badge px-3 py-2 rounded-pill font-weight-600 text-sm <?php echo $match['status_class']; ?>">
                                                 <?php echo $match['status_label']; ?>
