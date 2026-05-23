@@ -1,7 +1,6 @@
 <?php
 require_once 'db.php';
 
-// บันทึกแมตช์การแข่งขันใหม่
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_match'])) {
     $category_id = $_POST['category_id'];
     $sport_name = trim($_POST['sport_name']);
@@ -25,27 +24,41 @@ $matches = $pdo->query("SELECT m.*, c.category_name FROM matches m LEFT JOIN spo
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>สร้างรายการแข่งขันกีฬาสี</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>🏃 จัดการและสร้างรายการแข่งขันกีฬา</h2>
-        <div>
-            <a href="manage_categories.php" class="btn btn-outline-primary">🗂️ จัดการประเภทกีฬา</a>
-            <a href="manage_teams.php" class="btn btn-outline-secondary">🎨 จัดการทีมสี</a>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
+                <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
+                <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
+                <li class="nav-item"><a class="nav-link active" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
+            </ul>
         </div>
     </div>
+</nav>
+
+<div class="container mt-4">
+    <h2 class="mb-4">🏃 จัดการและสร้างรายการแข่งขันกีฬา</h2>
 
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm">
-                <div class="card-header bg-success text-white"><h5>➕ สร้างรายการแข่งขันใหม่</h5></div>
+                <div class="card-header bg-success text-white"><h5 class="mb-0">➕ สร้างรายการแข่งขันใหม่</h5></div>
                 <div class="card-body">
                     <form action="manage_matches.php" method="POST">
                         <div class="mb-2">
-                            <label class="form-label">กลุ่มประเภทกีฬา (เพื่อสรุปผล)</label>
+                            <label class="form-label">กลุ่มประเภทกีฬา</label>
                             <select class="form-select" name="category_id" required>
                                 <option value="">-- เลือกประเภท --</option>
                                 <?php foreach ($categories as $cat): ?>
@@ -91,13 +104,7 @@ $matches = $pdo->query("SELECT m.*, c.category_name FROM matches m LEFT JOIN spo
                 <div class="card-body">
                     <table class="table table-striped table-hover align-middle">
                         <thead>
-                            <tr>
-                                <th>กีฬา</th>
-                                <th>กลุ่ม</th>
-                                <th>ลักษณะ</th>
-                                <th>นักกีฬา/ทีม</th>
-                                <th>จัดการรายชื่อ</th>
-                            </tr>
+                            <tr><th>กีฬา</th><th>กลุ่ม</th><th>ลักษณะ</th><th>นักกีฬา/ทีม</th><th>จัดการรายชื่อ</th></tr>
                         </thead>
                         <tbody>
                             <?php foreach ($matches as $m): ?>
@@ -106,9 +113,7 @@ $matches = $pdo->query("SELECT m.*, c.category_name FROM matches m LEFT JOIN spo
                                 <td><span class="badge bg-secondary"><?php echo htmlspecialchars($m['category_name'] ?? 'ไม่ได้ระบุ'); ?></span></td>
                                 <td><?php echo $m['tournament_type']; ?></td>
                                 <td><?php echo $m['max_players_per_team']; ?> คน</td>
-                                <td>
-                                    <a href="register_athletes.php?match_id=<?php echo $m['id']; ?>" class="btn btn-info btn-sm">👥 รายชื่อนักกีฬา</a>
-                                </td>
+                                <td><a href="register_athletes.php?match_id=<?php echo $m['id']; ?>" class="btn btn-info btn-sm">👥 รายชื่อนักกีฬา</a></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -118,5 +123,6 @@ $matches = $pdo->query("SELECT m.*, c.category_name FROM matches m LEFT JOIN spo
         </div>
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
