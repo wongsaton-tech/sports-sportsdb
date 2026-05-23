@@ -1,10 +1,11 @@
 <?php
 require_once 'db.php';
-// แก้ไขบรรทัดเรียกไฟล์ check_auth.php เป็นแบบนี้เพื่อทดสอบ
-if (file_exists('check_auth.php')) {
-    require_once 'check_auth.php';
+// 2. ตรวจสอบและโหลดไฟล์ check_auth.php อย่างเข้มงวด
+$auth_file = __DIR__ . '/check_auth.php'; // __DIR__ หมายถึงโฟลเดอร์ที่ไฟล์นี้อยู่
+if (file_exists($auth_file)) {
+    require_once $auth_file;
 } else {
-    die("ไม่พบไฟล์ check_auth.php กรุณาตรวจสอบว่าไฟล์อยู่ในโฟลเดอร์เดียวกันหรือไม่");
+    die("Error: ไม่พบไฟล์ check_auth.php ในตำแหน่งที่กำหนด (ตรวจสอบว่าไฟล์ชื่อถูกต้องและอยู่ในโฟลเดอร์เดียวกัน)");
 }
 
 // 🔒 ล็อกความปลอดภัยสูงสุด: เฉพาะระดับ admin เท่านั้นที่มีสิทธิ์เข้าหน้านี้ได้
