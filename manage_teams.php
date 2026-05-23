@@ -6,7 +6,6 @@ $edit_id = '';
 $edit_name = '';
 $edit_color = '';
 
-// ================= สเต็บที่ 1: ดึงข้อมูลมาสแตนด์บายเมื่อกดปุ่ม "แก้ไข" (GET) =================
 if (isset($_GET['edit_id'])) {
     $edit_id = intval($_GET['edit_id']);
     $stmt = $pdo->prepare("SELECT * FROM teams WHERE id = ?");
@@ -20,7 +19,6 @@ if (isset($_GET['edit_id'])) {
     }
 }
 
-// ================= สเต็บที่ 2: ระบบบันทึกข้อมูล (ทั้งเพิ่มใหม่ และ อัปเดตแก้ไข) =================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_team'])) {
     $team_name = trim($_POST['team_name']);
     $team_color = $_POST['team_color'];
@@ -30,57 +28,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_team'])) {
     if (!empty($team_name) && !empty($team_color)) {
         try {
             if ($is_edit) {
-                // 🛑 เคสแก้ไข: เช็กว่าชื่อใหม่นี้ ไปซ้ำกับ "ทีมอื่น" หรือไม่ (หลีกเลี่ยง ID ของตัวเอง)
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM teams WHERE team_name = ? AND id != ?");
                 $chk->execute([$team_name, $target_id]);
-                $is_duplicate = $chk->fetchColumn() > 0;
-
-                if ($is_duplicate) {
-                    $error_msg = "❌ ไม่สามารถแก้ไขได้: มีชื่อ '" . htmlspecialchars($team_name) . "' อยู่ในระบบแล้ว!";
-                    // ล็อคค่าฟอร์มไว้ให้แก้ไขต่อ
+                if ($chk->fetchColumn() > 0) {
+                    $error_msg = "❌ มีชื่อทีมสี '" . htmlspecialchars($team_name) . "' นี้อยู่ในระบบแล้ว";
                     $edit_mode = true; $edit_id = $target_id; $edit_name = $team_name; $edit_color = $team_color;
                 } else {
-                    // ผ่านการตรวจสอบ -> ทำการอัปเดต
                     $stmt = $pdo->prepare("UPDATE teams SET team_name = ?, team_color = ? WHERE id = ?");
                     $stmt->execute([$team_name, $team_color, $target_id]);
                     header("Location: manage_teams.php?success=3");
                     exit();
                 }
             } else {
-                // 🛑 เคสเพิ่มใหม่: เช็กว่าชื่อซ้ำกับที่มีอยู่แล้วในระบบทั้งหมดหรือไม่
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM teams WHERE team_name = ?");
                 $chk->execute([$team_name]);
-                $is_duplicate = $chk->fetchColumn() > 0;
-
-                if ($is_duplicate) {
-                    $error_msg = "❌ ไม่สามารถเพิ่มได้: มีชื่อ '" . htmlspecialchars($team_name) . "' อยู่ในระบบแล้ว!";
+                if ($chk->fetchColumn() > 0) {
+                    $error_msg = "❌ มีชื่อทีมสี '" . htmlspecialchars($team_name) . "' นี้อยู่ในระบบแล้ว";
                 } else {
-                    // ผ่านการตรวจสอบ -> ทำการเพิ่มใหม่
                     $stmt = $pdo->prepare("INSERT INTO teams (team_name, team_color) VALUES (?, ?)");
                     $stmt->execute([$team_name, $team_color]);
                     header("Location: manage_teams.php?success=1");
                     exit();
                 }
             }
-        } catch (\PDOException $e) {
-            $error_msg = "เกิดข้อผิดพลาดในระบบ: " . $e->getMessage();
-        }
+        } catch (\PDOException $e) { $error_msg = $e->getMessage(); }
     }
 }
 
-// ================= สเต็บที่ 3: ระบบลบข้อมูลทีมสี =================
 if (isset($_GET['delete_id'])) {
     try {
-        $stmt = $pdo->prepare("DELETE FROM teams WHERE id = ?");
-        $stmt->execute([$_GET['delete_id']]);
+        $pdo->prepare("DELETE FROM teams WHERE id = ?")->execute([$_GET['delete_id']]);
         header("Location: manage_teams.php?success=2");
         exit();
-    } catch (\PDOException $e) {
-        $error_msg = "⚠️ ไม่สามารถลบทีมนี้ได้ เนื่องจากมีข้อมูลนักกีฬาหรือผลการแข่งเชื่อมโยงอยู่";
-    }
+    } catch (\PDOException $e) { $error_msg = "⚠️ ไม่สามารถลบทีมได้ เนื่องจากมีข้อมูลส่วนอื่นผูกอยู่"; }
 }
 
-// ดึงข้อมูลทีมทั้งหมดมาแสดงผลในตาราง
 $teams = $pdo->query("SELECT * FROM teams ORDER BY id DESC")->fetchAll();
 ?>
 
@@ -92,10 +74,18 @@ $teams = $pdo->query("SELECT * FROM teams ORDER BY id DESC")->fetchAll();
     <title>จัดการทีมกีฬาสี</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f2f2f7; color: #1c1c1e; }
+        .navbar { background-color: rgba(28, 28, 30, 0.92) !important; backdrop-filter: blur(20px); }
+        .ios-card { background: #ffffff; border-radius: 16px !important; border: none !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important; }
+        .form-control, .form-select { border-radius: 10px; border: 1px solid #d1d1d6; padding: 10px; }
+        .btn { border-radius: 10px; padding: 10px; font-weight: 600; }
+    </style>
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-3">
     <div class="container">
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
         <div class="collapse navbar-collapse" id="navbarNav">
@@ -111,103 +101,64 @@ $teams = $pdo->query("SELECT * FROM teams ORDER BY id DESC")->fetchAll();
 </nav>
 
 <div class="container mt-4">
-    <h2 class="mb-4">🎨 ระบบจัดการทีมกีฬาสี</h2>
+    <h3 class="fw-bold mb-4">🎨 จัดการกลุ่มทีมสี</h3>
 
     <?php if (isset($_GET['success'])): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fa-solid fa-circle-check me-1"></i>
-            <?php 
-                if($_GET['success'] == 1) echo "เพิ่มข้อมูลทีมสีสำเร็จ!";
-                if($_GET['success'] == 2) echo "ลบข้อมูลทีมสีเรียบร้อยแล้ว!";
-                if($_GET['success'] == 3) echo "อัปเดตแก้ไขข้อมูลทีมสีสำเร็จ!";
-            ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-success border-0 rounded-3 shadow-sm mb-3">
+            <i class="fa-solid fa-circle-check me-1"></i> ทำรายการสำเร็จเรียบร้อย!
         </div>
     <?php endif; ?>
 
     <?php if (isset($error_msg)): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fa-solid fa-triangle-exclamation me-1"></i>
-            <?php echo $error_msg; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+        <div class="alert alert-danger border-0 rounded-3 shadow-sm mb-3"><?php echo $error_msg; ?></div>
     <?php endif; ?>
 
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm border-start border-4 <?php echo $edit_mode ? 'border-warning' : 'border-primary'; ?>">
-                <div class="card-header <?php echo $edit_mode ? 'bg-warning text-dark' : 'bg-primary text-white'; ?> fw-bold">
-                    <h5 class="mb-0"><?php echo $edit_mode ? '📝 แก้ไขข้อมูลทีมสี' : '🎨 เพิ่มทีมสีใหม่'; ?></h5>
-                </div>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card ios-card p-2">
                 <div class="card-body">
+                    <h5 class="fw-bold mb-3"><?php echo $edit_mode ? 'แก้ไขข้อมูล' : 'เพิ่มทีมสีใหม่'; ?></h5>
                     <form action="manage_teams.php" method="POST">
                         <input type="hidden" name="is_edit" value="<?php echo $edit_mode ? '1' : '0'; ?>">
                         <input type="hidden" name="target_id" value="<?php echo $edit_id; ?>">
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold">ชื่อทีมสี</label>
-                            <input type="text" class="form-control" name="team_name" value="<?php echo htmlspecialchars($edit_name); ?>" placeholder="เช่น สีแดง, สีน้ำเงิน" required>
+                            <label class="form-label small text-muted">ชื่อทีมสี</label>
+                            <input type="text" class="form-control" name="team_name" value="<?php echo htmlspecialchars($edit_name); ?>" required placeholder="เช่น สีเหลือง">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">เลือกสีประจำทีม</label>
-                            <input type="color" class="form-control form-control-color w-100" name="team_color" value="<?php echo !empty($edit_color) ? $edit_color : '#007bff'; ?>" required>
+                            <label class="form-label small text-muted">เลือกสีประจำทีม</label>
+                            <input type="color" class="form-control form-control-color w-100 p-1" name="team_color" value="<?php echo !empty($edit_color) ? $edit_color : '#007bff'; ?>" required>
                         </div>
-                        
-                        <div class="row g-2">
-                            <div class="<?php echo $edit_mode ? 'col-6' : 'col-12'; ?>">
-                                <button type="submit" name="save_team" class="btn <?php echo $edit_mode ? 'btn-warning fw-bold' : 'btn-success'; ?> w-100">
-                                    <i class="fa-solid fa-floppy-disk me-1"></i> <?php echo $edit_mode ? 'อัปเดตข้อมูล' : 'บันทึกทีมสี'; ?>
-                                </button>
-                            </div>
-                            <?php if ($edit_mode): ?>
-                                <div class="col-6">
-                                    <a href="manage_teams.php" class="btn btn-secondary w-100">ยกเลิก</a>
-                                </div>
-                            <?php endif; ?>
-                        </div>
+                        <button type="submit" name="save_team" class="btn <?php echo $edit_mode ? 'btn-warning' : 'btn-primary'; ?> w-100">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> บันทึกข้อมูล
+                        </button>
+                        <?php if($edit_mode): ?><a href="manage_teams.php" class="btn btn-light w-100 mt-2">ยกเลิก</a><?php endif; ?>
                     </form>
                 </div>
             </div>
         </div>
 
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-secondary text-white"><h5 class="mb-0">รายชื่อทีมสีในปัจจุบัน</h5></div>
+            <div class="card ios-card p-2">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th width="10%">#</th>
-                                    <th width="40%">ชื่อทีมสี</th>
-                                    <th width="25%">สีประจำทีม</th>
-                                    <th width="25%" class="text-center">การจัดการ</th>
-                                </tr>
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small"><th>#</th><th>ชื่อทีมสี</th><th>สีประจำทีม</th><th class="text-center">การจัดการ</th></tr>
                             </thead>
                             <tbody>
-                                <?php if (count($teams) > 0): ?>
-                                    <?php foreach ($teams as $index => $team): ?>
-                                        <tr <?php echo ($edit_id == $team['id']) ? 'class="table-warning"' : ''; ?>>
-                                            <td><?php echo $index + 1; ?></td>
-                                            <td><strong><?php echo htmlspecialchars($team['team_name']); ?></strong></td>
-                                            <td>
-                                                <span class="badge" style="background-color: <?php echo $team['team_color']; ?>; padding: 8px 15px; color: #fff; text-shadow: 0px 1px 2px rgba(0,0,0,0.5);">
-                                                    <?php echo $team['team_color']; ?>
-                                                </span>
-                                            </td>
-                                            <td class="text-center">
-                                                <a href="manage_teams.php?edit_id=<?php echo $team['id']; ?>" class="btn btn-sm btn-outline-warning me-1">
-                                                    <i class="fa-solid fa-pen-to-square"></i> แก้ไข
-                                                </a>
-                                                <a href="manage_teams.php?delete_id=<?php echo $team['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('คุณแน่ใจหรือไม่ว่าต้องการลบทีมสีนี้?');">
-                                                    <i class="fa-solid fa-trash"></i> ลบ
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr><td colspan="4" class="text-center text-muted p-4">ยังไม่มีข้อมูลทีมสี</td></tr>
-                                <?php endif; ?>
+                                <?php foreach ($teams as $i => $t): ?>
+                                <tr>
+                                    <td><?php echo $i+1; ?></td>
+                                    <td class="fw-bold"><?php echo htmlspecialchars($t['team_name']); ?></td>
+                                    <td><span class="badge px-3 py-2" style="background-color: <?php echo $t['team_color']; ?>; border-radius: 8px;"><?php echo $t['team_color']; ?></span></td>
+                                    <td class="text-center">
+                                        <a href="manage_teams.php?edit_id=<?php echo $t['id']; ?>" class="btn btn-sm btn-outline-warning me-1"><i class="fa-solid fa-pen-to-square"></i></a>
+                                        <a href="manage_teams.php?delete_id=<?php echo $t['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('ยืนยันลบ?');"><i class="fa-solid fa-trash"></i></a>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -216,7 +167,6 @@ $teams = $pdo->query("SELECT * FROM teams ORDER BY id DESC")->fetchAll();
         </div>
     </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
