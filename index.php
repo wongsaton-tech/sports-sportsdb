@@ -176,7 +176,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
-                    <li class="nav-item"><a class="nav-link" href="manage_users.php"><i class="fa-solid fa-users-gear me-1"></i> จัดการผู้ใช้งาน</a></li>
                 <?php endif; ?>
                 
                 <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
@@ -306,32 +305,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                         <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                     </div>
                 </div>
-                <?php endif; ?>
-
-                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
-                <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
-                    <div class="card-body d-flex align-items-center p-3">
-                        <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
-                        <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนขึ้นบอร์ด</p></div>
-                        <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
-                    </div>
-                </div>
-                <?php endif; ?>
-                <div class="col-lg-5">
-    <div class="d-flex flex-column gap-2 h-100 justify-content-start">
-        
-        <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
-        <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
-            <div class="card-body d-flex align-items-center p-3">
-                <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
-                <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนขึ้นบอร์ด</p></div>
-                <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($user_role == 'admin'): ?>
-            <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
+                <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
                 <div class="card-body d-flex align-items-center p-3">
                     <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
                     <div><h6 class="mb-0 fw-bold text-dark">จัดการผู้ใช้งาน</h6><p class="mb-0 text-muted small">เพิ่ม/ลบ สิทธิ์เจ้าหน้าที่และกรรมการ</p></div>
@@ -353,8 +327,18 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                 }
             }
             </script>
-        <?php endif; ?>
-        </div>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
+                <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
+                    <div class="card-body d-flex align-items-center p-3">
+                        <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
+                        <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนขึ้นบอร์ด</p></div>
+                        <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <div class="col-lg-5">
 </div>
 
                 <?php if ($user_role == 'guest'): ?>
