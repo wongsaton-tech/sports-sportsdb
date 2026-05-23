@@ -5,6 +5,13 @@ require_once 'check_auth.php';
 date_default_timezone_set('Asia/Bangkok');
 $current_time = date('Y-m-d H:i:s');
 
+$success_msg = "";
+if (isset($_GET['success'])) {
+    if ($_GET['success'] === 'reset') {
+        $success_msg = "✅ รีเซ็ตระบบเรียบร้อยแล้ว! ข้อมูลทั้งหมดถูกล้างเรียบร้อย";
+    }
+}
+
 try {
 
     // =========================
@@ -310,6 +317,12 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
 
 <div class="container mt-4">
 
+    <?php if(!empty($success_msg)): ?>
+        <div class="alert alert-success border-0 rounded-3 mb-4 shadow-sm">
+            <i class="fa-solid fa-circle-check me-2"></i> <?php echo $success_msg; ?>
+        </div>
+    <?php endif; ?>
+
     <div class="p-4 bg-white rounded-4 shadow-sm mb-4 border-0">
 
         <h1 class="fw-bold text-dark mb-1">
@@ -337,7 +350,6 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
     <div class="row g-4 mb-4">
 
         <!-- LEFT -->
-
         <div class="col-lg-7">
 
             <div class="card ios-card p-2">
@@ -442,7 +454,6 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
         </div>
 
         <!-- RIGHT -->
-
         <div class="col-lg-5">
 
             <div class="d-flex flex-column gap-3">
@@ -541,7 +552,6 @@ $user_name = $_SESSION['user_name'] ?? 'บุคคลทั่วไป';
     </div>
 
     <!-- CALENDAR -->
-
     <div class="row">
 
         <div class="col-12">
