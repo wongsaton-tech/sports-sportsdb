@@ -15,14 +15,13 @@ if (!$match) {
 
 $max_quota = intval($match['max_players_per_team']);
 
-// ================= สเต็บที่ 2: บันทึกข้อมูลแบบอาร์เรย์ (Array รับพร้อมกันหลายชื่อ) =================
+// ================= สเต็บที่ 2: บันทึกข้อมูลแบบอาร์เรย์ (เฉพาะชื่อนักกีฬา) =================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_athletes_group'])) {
     $team_id = intval($_POST['team_id']);
     $athlete_names = $_POST['athlete_names']; // เป็น Array
-    $student_ids = $_POST['student_ids'];     // เป็น Array
 
     try {
-        // เช็กสิทธิ์ความปลอดภัย: นับจำนวนเด็กเดิมที่มีอยู่ในระบบของทีมนี้ในแมตช์นี้
+        // นับจำนวนเด็กเดิมที่มีอยู่ในระบบของทีมนี้ในแมตช์นี้
         $check = $pdo->prepare("SELECT COUNT(*) FROM athletes WHERE match_id = ? AND team_id = ?");
         $check->execute([$match_id, $team_id]);
         $current_count = intval($check->fetchColumn());
@@ -38,16 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_athletes_group'])
         if (($current_count + $new_athletes_count) > $max_quota) {
             $error_msg = "❌ ไม่สามารถบันทึกได้ เนื่องจากจำนวนนักกีฬารวมจะเกินโควตาที่กำหนดไว้ ($max_quota คน)";
         } else {
-            // ลุยวนลูปบันทึกรายชื่อเข้าฐานข้อมูล Aiven
-            $insert_stmt = $pdo->prepare("INSERT INTO athletes (team_id, match_id, athlete_name, student_id) VALUES (?, ?, ?, ?)");
+            // เตรียมคำสั่ง Insert บันทึกเฉพาะชื่อนักกีฬา
+            $insert_stmt = $pdo->prepare("INSERT INTO athletes (team_id, match_id, athlete_name) VALUES (?, ?, ?)");
             
-            foreach ($athlete_names as $index => $name) {
+            foreach ($athlete_names as $name) {
                 $clean_name = trim($name);
-                $clean_std_id = trim($student_ids[$index]);
 
                 // บันทึกเฉพาะช่องที่มีการกรอกชื่อเข้ามาเท่านั้น
                 if (!empty($clean_name)) {
-                    $insert_stmt->execute([$team_id, $match_id, $clean_name, $clean_std_id]);
+                    $insert_stmt->execute([$team_id, $match_id, $clean_name]);
                 }
             }
             
@@ -59,17 +57,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_athletes_group'])
     }
 }
 
-// ================= สเต็บที่ 3: ระบบลบรายชื่อนักกีฬาตัวบุคคล =================
+// ================= สเต็บที่ 3: ระบบลบรายชื่อนักกีฬา =================
 if (isset($_GET['delete_athlete_id'])) {
     $pdo->prepare("DELETE FROM athletes WHERE id = ?")->execute([$_GET['delete_athlete_id']]);
     header("Location: register_athletes.php?match_id=$match_id&success=2");
     exit();
 }
 
-// ================= สเต็บที่ 4: เตรียมข้อมูลไปคำนวณโควตาฝั่ง JavaScript (API ย่อยในตัว) =================
+// ================= สเต็บที่ 4: เตรียมข้อมูลโควตาให้ฝั่ง JavaScript =================
 $teams = $pdo->query("SELECT * FROM teams ORDER BY id ASC")->fetchAll();
 
-// คํานวณยอดส่งแล้วของแต่ละสีไว้ล่วงหน้า เพื่อส่งผ่านไปให้ JS หักลบโควตาแบบเรียลไทม์
 $quota_tracker = [];
 foreach ($teams as $t) {
     $q_stmt = $pdo->prepare("SELECT COUNT(*) FROM athletes WHERE match_id = ? AND team_id = ?");
@@ -77,7 +74,7 @@ foreach ($teams as $t) {
     $quota_tracker[$t['id']] = intval($q_stmt->fetchColumn());
 }
 
-// ดึงรายชื่อนักกีฬาที่ลงทะเบียนแล้วทั้งหมดมาแสดงในตาราง
+// ดึงรายชื่อนักกีฬาที่ลงทะเบียนแล้วมาแสดงในตาราง (ไม่ดึง student_id)
 $athletes_query = $pdo->prepare("SELECT a.*, t.team_name, t.team_color FROM athletes a JOIN teams t ON a.team_id = t.id WHERE a.match_id = ? ORDER BY t.id ASC, a.id ASC");
 $athletes_query->execute([$match_id]);
 $athlete_list = $athletes_query->fetchAll();
@@ -175,24 +172,22 @@ $athlete_list = $athletes_query->fetchAll();
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                                 <tr class="text-muted small">
-                                    <th>ทีมสี</th>
-                                    <th>รหัสนักเรียน</th>
-                                    <th>ชื่อ-นามสกุล นักกีฬา</th>
-                                    <th class="text-center">จัดการ</th>
+                                    <th width="30%">ทีมสี</th>
+                                    <th width="50%">ชื่อ-นามสกุล นักกีฬา</th>
+                                    <th width="20%" class="text-center">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if(count($athlete_list) > 0): foreach ($athlete_list as $ath): ?>
                                 <tr>
                                     <td><span class="badge px-3 py-2" style="background-color: <?php echo $ath['team_color']; ?>; border-radius: 8px;"><?php echo htmlspecialchars($ath['team_name']); ?></span></td>
-                                    <td class="font-monospace text-muted small"><?php echo htmlspecialchars($ath['student_id']); ?></td>
                                     <td class="fw-bold"><?php echo htmlspecialchars($ath['athlete_name']); ?></td>
                                     <td class="text-center">
                                         <a href="register_athletes.php?match_id=<?php echo $match_id; ?>&delete_athlete_id=<?php echo $ath['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('คุณต้องการลบรายชื่อนักกีฬาท่านนี้ใช่หรือไม่?');"><i class="fa-solid fa-user-minus"></i> ลบ</a>
                                     </td>
                                 </tr>
                                 <?php endforeach; else: ?>
-                                    <tr><td colspan="4" class="text-center text-muted p-4">ยังไม่มีข้อมูลรายชื่อนักกีฬาในแมตช์นี้</td></tr>
+                                    <tr><td colspan="3" class="text-center text-muted p-4">ยังไม่มีข้อมูลรายชื่อนักกีฬาในแมตช์นี้</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -204,7 +199,6 @@ $athlete_list = $athletes_query->fetchAll();
 </div>
 
 <script>
-// รับตัวแปรแผนผังโควตาที่ประมวลผลจากฝั่ง PHP มาเก็บในรูปแบบ JSON บนเบราว์เซอร์
 const maxQuota = <?php echo $max_quota; ?>;
 const quotaTracker = <?php echo json_encode($quota_tracker); ?>;
 
@@ -213,23 +207,20 @@ function generateInputFields() {
     const displayArea = document.getElementById('dynamicInputArea');
     const submitBtn = document.getElementById('submitBtn');
     
-    $selectedTeamId = teamSelect.value;
+    const selectedTeamId = teamSelect.value;
     
-    // เคส: ถ้าไม่ได้เลือกทีมสีให้รีเซ็ตกลับหน้าเดิม
-    if (!$selectedTeamId) {
+    if (!selectedTeamId) {
         displayArea.innerHTML = `<div class="text-center p-4 rounded-3 border border-dashed text-muted small"><i class="fa-solid fa-users fa-2x mb-2 text-black-50"></i><br>กรุณาเลือกทีมสีด้านบนก่อน เพื่อระบุจำนวนช่องกรอกชื่อตามโควตา</div>`;
         submitBtn.classList.add('d-none');
         return;
     }
     
-    // ดึงข้อมูลว่าสีนี้ลงทะเบียนไปแล้วกี่คน และคำนวณหาช่องที่เปิดเพิ่มได้
-    const registeredCount = parseInt(quotaTracker[$selectedTeamId]) || 0;
+    const registeredCount = parseInt(quotaTracker[selectedTeamId]) || 0;
     const availableSlots = maxQuota - registeredCount;
     
     let htmlContent = '';
     
     if (availableSlots <= 0) {
-        // เคส: โควตาสีนี้ส่งครบกำหนดแล้ว
         htmlContent = `
             <div class="alert alert-warning border-0 text-center rounded-3 p-3 mb-0">
                 <i class="fa-solid fa-circle-exclamation text-warning fa-lg mb-2"></i><br>
@@ -238,27 +229,18 @@ function generateInputFields() {
             </div>`;
         submitBtn.classList.add('d-none');
     } else {
-        // เคส: โควตายังเหลือ -> วนลูปปั๊มฟอร์มกรอกชื่อขึ้นมาตามจำนวนสล็อตที่ว่างอยู่
         htmlContent = `<h6 class="fw-bold mb-3 text-success"><i class="fa-solid fa-user-plus me-1"></i> สามารถส่งรายชื่อเพิ่มได้อีก ${availableSlots} คน:</h6>`;
         
         for (let i = 0; i < availableSlots; i++) {
             htmlContent += `
                 <div class="input-group-box">
                     <span class="badge bg-secondary mb-2 small">คนที่ ${registeredCount + i + 1}</span>
-                    <div class="row g-2">
-                        <div class="col-4">
-                            <input type="text" class="form-control form-control-sm" name="student_ids[]" placeholder="รหัสนักเรียน">
-                        </div>
-                        <div class="col-8">
-                            <input type="text" class="form-control form-control-sm" name="athlete_names[]" placeholder="ชื่อ - นามสกุล" ${i === 0 ? 'required' : ''}>
-                        </div>
-                    </div>
+                    <input type="text" class="form-control form-control-sm" name="athlete_names[]" placeholder="ชื่อ - นามสกุลนักเรียน" ${i === 0 ? 'required' : ''}>
                 </div>`;
         }
         submitBtn.classList.remove('d-none');
     }
     
-    // หยอด HTML ลงในหน้าจอพรีวิวแบบ Real-time
     displayArea.innerHTML = htmlContent;
 }
 </script>
