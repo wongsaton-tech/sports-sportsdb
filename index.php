@@ -8,16 +8,16 @@ $current_time = date('Y-m-d H:i:s');
 
 try {
     // ------------------------------------------------------------------
-    // ส่วนที่ 1: ดึงข้อมูลกลุ่มสีและคำนวณคะแนน (ปรับตามตารางจริงใน DBeaver)
+    // ส่วนที่ 1: ดึงข้อมูลกลุ่มสีและคำนวณคะแนน (แก้ไขให้ใช้ t.name และ t.color ตรงตามตารางจริง)
     // ------------------------------------------------------------------
-    $sql_scores = "SELECT t.id, t.team_name, t.color,
+    $sql_scores = "SELECT t.id, t.name, t.color,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
             SUM(CASE WHEN r.medal = 'เงิน' THEN 1 ELSE 0 END) as silver_count,
             SUM(CASE WHEN r.medal = 'ทองแดง' THEN 1 ELSE 0 END) as bronze_count,
             COALESCE(SUM(r.points), 0) as total_points
             FROM teams t
             LEFT JOIN match_results r ON t.id = r.team_id
-            GROUP BY t.id, t.team_name, t.color
+            GROUP BY t.id, t.name, t.color
             ORDER BY total_points DESC, gold_count DESC, t.id ASC";
             
     $stmt_scores = $pdo->query($sql_scores);
@@ -32,7 +32,7 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ปรับใช้ match_name และ date_time ตามตารางจริง)
+    // ส่วนที่ 2: ดึงข้อมูลปฏิทินรายการแข่งขัน (ใช้ match_name และ date_time ตามตารางจริง)
     // ------------------------------------------------------------------
     $sql_matches = "SELECT m.*, 
                     (SELECT COUNT(*) FROM match_results r WHERE r.match_id = m.id) as is_finished
@@ -237,7 +237,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     <?php if ($has_scores && !empty($teams_dashboard)): ?>
                         <div class="p-3 bg-warning bg-opacity-10 rounded-4 border-0 mb-3 text-center">
                             <h6 class="text-warning-emphasis fw-bold mb-1"><i class="fa-solid fa-crown me-1"></i> คะแนนรวมอันดับที่ 1 ในปัจจุบัน</h6>
-                            <h2 class="fw-bold text-dark mb-0"><?php echo htmlspecialchars($teams_dashboard[0]['team_name']); ?></h2>
+                            <h2 class="fw-bold text-dark mb-0"><?php echo htmlspecialchars($teams_dashboard[0]['name']); ?></h2>
                             <small class="text-muted">ผลรวม: <?php echo $teams_dashboard[0]['total_points']; ?> คะแนน</small>
                         </div>
                     <?php else: ?>
@@ -272,7 +272,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                                         </td>
                                         <td class="fw-bold">
                                             <span class="badge me-2" style="background-color: <?php echo $team['color']; ?>; width: 12px; height: 12px; display: inline-block; border-radius: 50%;"> </span>
-                                            <?php echo htmlspecialchars($team['team_name']); ?>
+                                            <?php echo htmlspecialchars($team['name']); ?>
                                         </td>
                                         <td class="text-center fw-bold text-warning"><?php echo $team['gold_count']; ?></td>
                                         <td class="text-center fw-bold text-secondary"><?php echo $team['silver_count']; ?></td>
