@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'check_auth.php'; // เรียกใช้ระบบเช็กสิทธิ์ Session
 
 // ตั้งค่า Timezone ให้ตรงกับประเทศไทยเพื่อความแม่นยำในการคำนวณเวลาปฏิทิน
 date_default_timezone_set('Asia/Bangkok');
@@ -7,7 +8,7 @@ $current_time = date('Y-m-d H:i:s');
 
 try {
     // ------------------------------------------------------------------
-    // ส่วนที่ 1: คำนวณสรุปเหรียญรางวัลของแต่ละทีมสี (เหมือนเดิม)
+    // ส่วนที่ 1: คำนวณสรุปเหรียญรางวัลของแต่ละทีมสีบนบอร์ด
     // ------------------------------------------------------------------
     $sql_scores = "SELECT t.id, t.team_name, t.team_color,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
@@ -31,9 +32,8 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // ส่วนที่ 2: ดึงข้อมูลแมตช์มาทำปฏิทินไทม์ไลน์ และจัดกลุ่มตามเงื่อนไขของคุณ
+    // ส่วนที่ 2: ดึงข้อมูลแมตช์มาทำปฏิทินไทม์ไลน์ และจัดกลุ่ม/เรียงลำดับตามเงื่อนไข
     // ------------------------------------------------------------------
-    // ดึงรายชื่อแมตช์ทั้งหมด พร้อมเช็กเบื้องหลังว่าแมตช์นั้นมีคะแนนบันทึกเข้าไปหรือยัง (COUNT(r.id))
     $sql_matches = "SELECT m.*, c.category_name, 
                     COUNT(r.id) as is_finished
                     FROM matches m 
@@ -44,12 +44,10 @@ try {
     
     $all_matches = $pdo->query($sql_matches)->fetchAll();
 
-    // แยกตารางออกเป็น 2 กลุ่มใหญ่ เพื่อให้กลุ่มที่จบการแข่งขันโดนผลักไปอยู่ท้ายตารางแน่นอนร้อยเปอร์เซ็นต์
     $upcoming_list = [];
     $finished_list = [];
 
     foreach ($all_matches as $match) {
-        // คำนวณสถานะเวลา
         $match_time = $match['match_datetime'];
         $status_label = 'ยังไม่ถึงวันแข่งขัน';
         $status_class = 'bg-secondary bg-opacity-10 text-secondary';
@@ -61,11 +59,10 @@ try {
             $time_diff = strtotime($match_time) - strtotime($current_time); // หน่วยเป็นวินาที
             
             if ($time_diff < 0) {
-                // เกินเวลาเริ่มมาแล้ว แต่ยังไม่มีการคีย์ผลการแข่ง สมมติว่าอยู่ในช่วงกำลังดำเนินการแข่งขัน
-                // (ภายในช่วง 2 ชั่วโมงหลังเริ่มปักป้ายแข่ง)
+                // เกินเวลาเริ่มมาแล้วแต่ยังไม่มีการบันทึกผล สมมติว่ากำลังแข่งขันอยู่ (ภายในช่วง 2 ชั่วโมง)
                 if (abs($time_diff) <= 7200) {
                     $status_label = 'กำลังแข่งขัน';
-                    $status_class = 'bg-danger text-white animate-pulse'; // แถบสีแดงเด่น
+                    $status_class = 'bg-danger text-white animate-pulse';
                 } else {
                     $status_label = 'รอการบันทึกผล';
                     $status_class = 'bg-warning bg-opacity-20 text-warning-emphasis';
@@ -77,11 +74,10 @@ try {
             }
         }
 
-        // แนบข้อมูลสถานะกลับเข้าไปใน Array ตัวแปรแมตช์
         $match['status_label'] = $status_label;
         $match['status_class'] = $status_class;
 
-        // แยกคิวนำส่งลงกลุ่ม
+        // แยกกลุ่ม: จบการแข่งขันไปอยู่ท้ายสุด ส่วนที่เหลืออยู่กลุ่มบน
         if ($status_label == 'จบการแข่งขัน') {
             $finished_list[] = $match;
         } else {
@@ -89,15 +85,14 @@ try {
         }
     }
 
-    // เรียงกลุ่มที่ยังไม่แข่ง (Upcoming) ให้วันที่กำลังจะถึงเร็วที่สุดขึ้นมาอยู่บนสุด
-    // โดยใช้ฟังก์ชันเปรียบเทียบเวลาสากล
+    // เรียงกลุ่มที่ยังไม่แข่ง (Upcoming) ให้วันที่ใกล้จะถึงที่สุดอยู่บนสุด
     usort($upcoming_list, function($a, $b) {
         if (empty($a['match_datetime'])) return 1;
         if (empty($b['match_datetime'])) return -1;
         return strtotime($a['match_datetime']) - strtotime($b['match_datetime']);
     });
 
-    // ยุบรวมทั้ง 2 รายการเข้าด้วยกัน (Upcoming อยู่บน เสมอ และ Finished ต่อท้ายสอยตูดลงไปข้างล่าง)
+    // ยุบรวม 2 กลุ่มเข้าด้วยกัน (Upcoming อยู่บน เสมอ และ Finished ต่อท้ายลงไป)
     $calendar_timeline = array_merge($upcoming_list, $finished_list);
 
 } catch (\PDOException $e) {
@@ -105,6 +100,10 @@ try {
     $calendar_timeline = [];
     $has_scores = false;
 }
+
+// ตรวจสอบสิทธิ์จาก Session ปัจจุบัน (ถ้าไม่ได้ล็อกอินจะเป็น guest อัตโนมัติ)
+$user_role = isset($_SESSION['user_role']) ? $_SESSION['user_role'] : 'guest';
+$user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุคคลทั่วไป';
 ?>
 
 <!DOCTYPE html>
@@ -151,7 +150,6 @@ try {
             font-weight: 600;
             font-size: 0.9rem;
         }
-        /* ทำเอฟเฟกต์ไฟกระพริบสำหรับสถานะ "กำลังแข่งขัน" */
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.6; }
@@ -167,23 +165,55 @@ try {
 <nav class="navbar navbar-expand-lg navbar-dark shadow-sm py-3">
     <div class="container">
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
+            <ul class="navbar-nav me-auto">
                 <li class="nav-item"><a class="nav-link active" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
-                <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
-                <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
-                <li class="nav-item"><a class="nav-link" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
-                <li class="nav-item"><a class="nav-link" href="manage_scores.php"><i class="fa-solid fa-star me-1"></i> บันทึกคะแนน</a></li>
+                
+                <?php if ($user_role == 'admin'): ?>
+                    <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
+                    <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
+                    <li class="nav-item"><a class="nav-link" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
+                <?php endif; ?>
+                
+                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
+                    <li class="nav-item"><a class="nav-link" href="manage_scores.php"><i class="fa-solid fa-star me-1"></i> บันทึกคะแนน</a></li>
+                <?php endif; ?>
+            </ul>
+
+            <ul class="navbar-nav ms-auto">
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger fw-bold" href="logout.php" onclick="return confirm('คุณต้องการออกจากระบบใช่หรือไม่?');">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> ออกจากระบบ
+                        </a>
+                    </li>
+                <?php else: ?>
+                    <li class="nav-item">
+                        <a class="nav-link text-success fw-bold" href="login.php">
+                            <i class="fa-solid fa-right-to-bracket me-1"></i> เจ้าหน้าที่ล็อกอิน
+                        </a>
+                    </li>
+                <?php endif; ?>
             </ul>
         </div>
     </div>
 </nav>
 
 <div class="container mt-4">
+
+    <?php if (isset($_GET['auth_error']) && $_GET['auth_error'] == 'denied'): ?>
+        <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-3">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>ปฏิเสธการเข้าถึง!</strong> บัญชีของคุณไม่มีสิทธิ์เข้าใช้งานในส่วนที่เลือกครับ
+        </div>
+    <?php endif; ?>
+
     <div class="p-4 bg-white rounded-4 shadow-sm mb-4 border-0 text-center text-md-start d-md-flex align-items-center justify-content-between">
         <div>
             <h1 class="fw-bold text-dark mb-1">SportsDay Dashboard</h1>
-            <p class="text-muted mb-0">ปฏิทินกิจกรรมไทม์ไลน์และสรุปคะแนนรวมงานกีฬาสี</p>
+            <p class="text-muted mb-0">ยินดีต้อนรับ: <span class="badge bg-dark"><?php echo htmlspecialchars($user_name); ?></span> (สิทธิ์การใช้งาน: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)</p>
         </div>
     </div>
 
@@ -208,15 +238,15 @@ try {
                     <?php endif; ?>
 
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle mb-0">
                             <thead>
                                 <tr class="text-muted small">
-                                    <th class="text-center">อันดับ</th>
-                                    <th>ทีมสี</th>
-                                    <th class="text-center">🥇 ทอง</th>
-                                    <th class="text-center">🥈 เงิน</th>
-                                    <th class="text-center">🥉 ทองแดง</th>
-                                    <th class="text-center">คะแนนรวม</th>
+                                    <th class="text-center" width="15%">อันดับ</th>
+                                    <th width="35%">ทีมสี</th>
+                                    <th class="text-center" width="12%">🥇 ทอง</th>
+                                    <th class="text-center" width="12%">🥈 เงิน</th>
+                                    <th class="text-center" width="12%">🥉 ทองแดง</th>
+                                    <th class="text-center" width="14%">คะแนน</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -240,7 +270,9 @@ try {
                                         <td class="text-center fw-bold text-danger"><?php echo $team['bronze_count']; ?></td>
                                         <td class="text-center fw-bold text-primary"><?php echo $team['total_points']; ?></td>
                                     </tr>
-                                <?php endforeach; endif; ?>
+                                <?php endforeach; else: ?>
+                                    <tr><td colspan="6" class="text-center text-muted p-3">ยังไม่มีข้อมูลกลุ่มทีมสีในระบบ</td></tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -249,7 +281,9 @@ try {
         </div>
 
         <div class="col-lg-5">
-            <div class="d-flex flex-column gap-2 h-100 justify-content-between">
+            <div class="d-flex flex-column gap-2 h-100 justify-content-start">
+                
+                <?php if ($user_role == 'admin'): ?>
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_teams.php'">
                     <div class="card-body d-flex align-items-center p-3">
                         <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-palette fa-lg"></i></div>
@@ -260,38 +294,51 @@ try {
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_categories.php'">
                     <div class="card-body d-flex align-items-center p-3">
                         <div class="bg-dark bg-opacity-10 text-dark rounded-4 p-3 me-3"><i class="fa-solid fa-folder-open fa-lg"></i></div>
-                        <div><h6 class="mb-0 fw-bold text-dark">จัดการประเภทกีฬา</h6><p class="mb-0 text-muted small">แบ่งกลุ่มกรีฑา ลู่-ลาน ขบวนพาเหรด</p></div>
+                        <div><h6 class="mb-0 fw-bold text-dark">จัดการประเภทกีฬา</h6><p class="mb-0 text-muted small">แบ่งกลุ่มกรีฑา ลู่-ลาน หรือพาเหรด</p></div>
                         <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                     </div>
                 </div>
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_matches.php'">
                     <div class="card-body d-flex align-items-center p-3">
                         <div class="bg-success bg-opacity-10 text-success rounded-4 p-3 me-3"><i class="fa-solid fa-person-running fa-lg"></i></div>
-                        <div><h6 class="mb-0 fw-bold text-dark">สร้างแมตช์ & รายชื่อนักกีฬา</h6><p class="mb-0 text-muted small">วางผังตารางแข่งประจำวันและกรอกชื่อนักเรียน</p></div>
+                        <div><h6 class="mb-0 fw-bold text-dark">สร้างแมตช์ & รายชื่อนักกีฬา</h6><p class="mb-0 text-muted small">วางผังตารางแข่งและกรอกชื่อนักเรียน</p></div>
                         <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                     </div>
                 </div>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
                     <div class="card-body d-flex align-items-center p-3">
                         <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
-                        <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนสดขึ้่นบอร์ด</p></div>
+                        <div><h6 class="mb-0 fw-bold text-dark">บันทึกคะแนนผลการแข่ง</h6><p class="mb-0 text-muted small">คีย์เหรียญและรางวัลเพื่อดันคะแนนขึ้นบอร์ด</p></div>
                         <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                     </div>
                 </div>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'guest'): ?>
+                    <div class="p-4 rounded-4 border border-dashed text-center text-muted small bg-white shadow-sm h-100 d-flex flex-column align-items-center justify-content-center">
+                        <i class="fa-solid fa-lock fa-2x mb-2 text-black-50"></i><br>
+                        <span>คุณกำลังเข้าชมในฐานะบุคคลทั่วไป (โหมดรับชมบอร์ด)<br>หากเป็นกรรมการกรุณากด <strong>"เจ้าหน้าที่ล็อกอิน"</strong> ด้านบน</span>
+                    </div>
+                <?php endif; ?>
+
             </div>
         </div>
     </div>
+
     <div class="row">
         <div class="col-12">
             <div class="card ios-card p-2 mb-5">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4 px-2">
                         <h5 class="fw-bold m-0"><i class="fa-solid fa-calendar-days text-success me-2"></i> ปฏิทินไทม์ไลน์กำหนดการแข่งขันกีฬาสี</h5>
-                        <span class="small text-muted"><i class="fa-regular fa-clock me-1"></i> เวลาปัจจุบัน: <?php echo date('d/m/Y H:i'); ?> น.</span>
+                        <span class="small text-muted"><i class="fa-regular fa-clock me-1"></i> ข้อมูลอัปเดตเรียลไทม์</span>
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle mb-0">
                             <thead>
                                 <tr class="text-muted small">
                                     <th width="20%">📅 วันเวลาแข่งขัน</th>
