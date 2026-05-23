@@ -195,46 +195,76 @@ $is_logged_in = isset($_SESSION['user_id']);
 
     <div class="row g-4 mb-4">
         <!-- LEFT: บอร์ดสรุปเหรียญรางวัล -->
-        <div class="col-lg-7">
-            <div class="card ios-card p-2 h-100">
-                <div class="card-body">
-                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัล</h5>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead>
-                                <tr class="text-muted small">
-                                    <th class="text-center">อันดับ</th>
-                                    <th>ทีมสี</th>
-                                    <th class="text-center">🥇</th>
-                                    <th class="text-center">🥈</th>
-                                    <th class="text-center">🥉</th>
-                                    <th class="text-center">คะแนน</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($teams_dashboard as $index => $team): ?>
-                                <tr>
+<div class="col-lg-7">
+    <div class="card ios-card p-2 h-100">
+        <div class="card-body">
+            <h5 class="fw-bold mb-3">
+                <i class="fa-solid fa-award me-2 text-primary"></i>
+                บอร์ดสรุปเหรียญรางวัล
+            </h5>
+            
+            <?php if (empty($teams_dashboard)): ?>
+                <div class="text-center text-muted py-5">
+                    ยังไม่มีข้อมูลทีมสี กรุณาเพิ่มข้อมูลทีมก่อน
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="text-muted small">
+                                <th class="text-center">อันดับ</th>
+                                <th>ชื่อทีม</th>
+                                <th class="text-center">🥇 ทอง</th>
+                                <th class="text-center">🥈 เงิน</th>
+                                <th class="text-center">🥉 ทองแดง</th>
+                                <th class="text-center fw-bold">คะแนนรวม</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($teams_dashboard as $index => $team): 
+                                $is_leader = $index === 0 && $team['total_points'] > 0;
+                            ?>
+                                <tr class="<?php echo $is_leader ? 'table-warning' : ''; ?>">
                                     <td class="text-center">
-                                        <div class="rank-badge mx-auto <?php echo $index == 0 ? 'bg-warning text-dark' : 'bg-secondary bg-opacity-10 text-dark'; ?>">
+                                        <div class="rank-badge mx-auto <?php echo $is_leader ? 'bg-warning text-dark' : 'bg-secondary bg-opacity-10 text-dark'; ?>">
                                             <?php echo $index + 1; ?>
                                         </div>
                                     </td>
                                     <td class="fw-bold">
-                                        <span class="badge me-2" style="background-color: <?php echo $team['team_color']; ?>; width:12px;height:12px;border-radius:50%;"></span>
+                                        <span class="d-inline-block me-2" 
+                                              style="background-color: <?php echo htmlspecialchars($team['team_color']); ?>; 
+                                                     width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd;">
+                                        </span>
                                         <?php echo htmlspecialchars($team['team_name']); ?>
+                                        <?php if ($is_leader): ?>
+                                            <i class="fa-solid fa-trophy text-warning ms-2"></i>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-center text-warning fw-bold"><?php echo $team['gold_count']; ?></td>
                                     <td class="text-center text-secondary fw-bold"><?php echo $team['silver_count']; ?></td>
                                     <td class="text-center text-danger fw-bold"><?php echo $team['bronze_count']; ?></td>
-                                    <td class="text-center text-primary fw-bold"><?php echo $team['total_points']; ?></td>
+                                    <td class="text-center fw-bold text-primary fs-5">
+                                        <?php echo $team['total_points']; ?>
+                                    </td>
                                 </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+                
+                <?php if (!empty($teams_dashboard)): ?>
+                    <div class="mt-3 text-end small text-muted">
+                        ทีมที่มียอดคะแนนรวมสูงสุด: 
+                        <strong class="text-warning">
+                            <?php echo htmlspecialchars($teams_dashboard[0]['team_name']); ?> 
+                            (<?php echo $teams_dashboard[0]['total_points']; ?> คะแนน)
+                        </strong>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
+    </div>
+</div>
 
         <!-- RIGHT: Login หรือ เมนู -->
         <div class="col-lg-5">
