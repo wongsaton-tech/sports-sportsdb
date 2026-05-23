@@ -5,7 +5,7 @@ require_once 'check_auth.php';
 date_default_timezone_set('Asia/Bangkok');
 $current_time = date('Y-m-d H:i:s');
 
-// ดึงข้อมูลคะแนน
+// 1. ดึงข้อมูลสรุปเหรียญ
 try {
     $sql_scores = "SELECT t.id, t.team_name, t.team_color,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
@@ -19,12 +19,17 @@ try {
     $teams_dashboard = $pdo->query($sql_scores)->fetchAll();
 } catch (\PDOException $e) { $teams_dashboard = []; }
 
-// ดึงข้อมูลตารางแข่ง
+// 2. ดึงข้อมูลรายการแข่งขัน
 $sql_matches = "SELECT m.*, c.category_name, COUNT(r.id) as is_finished FROM matches m 
                 LEFT JOIN sport_categories c ON m.category_id = c.id 
                 LEFT JOIN match_results r ON m.id = r.match_id
                 GROUP BY m.id ORDER BY m.match_datetime ASC";
 $all_matches = $pdo->query($sql_matches)->fetchAll();
+
+foreach ($all_matches as &$m) {
+    $m['status_label'] = ($m['is_finished'] > 0) ? 'จบการแข่งขัน' : 'รอการบันทึกผล';
+    $m['status_class'] = ($m['is_finished'] > 0) ? 'bg-success bg-opacity-10 text-success' : 'bg-warning bg-opacity-10 text-warning';
+}
 
 $user_role = isset($_SESSION['user_role']) ? $_SESSION['user_role'] : 'guest';
 $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุคคลทั่วไป';
@@ -78,7 +83,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
 
         <div class="col-lg-5">
             <div class="d-flex flex-column gap-3">
-                
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
                     <div class="card-body d-flex align-items-center p-3">
                         <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
@@ -101,6 +105,25 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     </div>
                 </div>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="col-12 mt-2">
+            <div class="card ios-card p-4">
+                <h5 class="mb-3 fw-bold"><i class="fa-solid fa-calendar-days text-primary me-2"></i> รายการแข่งขัน</h5>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <tbody>
+                            <?php foreach ($all_matches as $match): ?>
+                            <tr>
+                                <td><div class="fw-bold"><?php echo htmlspecialchars($match['sport_name']); ?></div><small class="text-muted"><?php echo $match['match_datetime']; ?></small></td>
+                                <td><span class="badge bg-light text-secondary"><?php echo htmlspecialchars($match['category_name'] ?? 'ทั่วไป'); ?></span></td>
+                                <td class="text-center"><span class="badge <?php echo $match['status_class']; ?> px-3 py-2 rounded-pill"><?php echo $match['status_label']; ?></span></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
