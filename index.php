@@ -213,7 +213,22 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
     <div class="p-4 bg-white rounded-4 shadow-sm mb-4 border-0 text-center text-md-start d-md-flex align-items-center justify-content-between">
         <div>
             <h1 class="fw-bold text-dark mb-1">SportsDay Dashboard</h1>
-            <p class="text-muted mb-0">ยินดีต้อนรับ: <span class="badge bg-dark"><?php echo htmlspecialchars($user_name); ?></span> (สิทธิ์การใช้งาน: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)</p>
+            <p class="text-muted mb-0">
+                ยินดีต้อนรับ: <span class="badge bg-dark"><?php echo htmlspecialchars($user_name); ?></span> 
+                (สิทธิ์การใช้งาน: <span class="text-warning fw-bold"><?php echo strtoupper($user_role); ?></span>)
+                
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <a href="edit_profile.php" class="btn btn-sm btn-outline-secondary py-1 px-2 ms-2" style="font-size: 0.8rem; border-radius: 6px;">
+                        <i class="fa-solid fa-user-pen me-1"></i> แก้ไขรหัสผ่าน
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($user_role == 'admin'): ?>
+                    <a href="manage_users.php" class="btn btn-sm btn-outline-danger py-1 px-2 ms-1" style="font-size: 0.8rem; border-radius: 6px;">
+                        <i class="fa-solid fa-users-gear me-1"></i> จัดการสมาชิกผู้ใช้
+                    </a>
+                <?php endif; ?>
+            </p>
         </div>
     </div>
 
