@@ -171,16 +171,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item"><a class="nav-link active" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
-                
-                <?php if ($user_role == 'admin'): ?>
-                    <li class="nav-item"><a class="nav-link" href="manage_teams.php"><i class="fa-solid fa-palette me-1"></i> จัดการทีมสี</a></li>
-                    <li class="nav-item"><a class="nav-link" href="manage_categories.php"><i class="fa-solid fa-folder-open me-1"></i> ประเภทกีฬา</a></li>
-                    <li class="nav-item"><a class="nav-link" href="manage_matches.php"><i class="fa-solid fa-person-running me-1"></i> รายการแข่ง & นักกีฬา</a></li>
-                <?php endif; ?>
-                
-                <?php if ($user_role == 'admin' || $user_role == 'scorekeeper'): ?>
-                    <li class="nav-item"><a class="nav-link" href="manage_scores.php"><i class="fa-solid fa-star me-1"></i> บันทึกคะแนน</a></li>
-                <?php endif; ?>
             </ul>
 
             <ul class="navbar-nav ms-auto">
