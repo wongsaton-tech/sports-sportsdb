@@ -5,7 +5,7 @@ require_once 'check_auth.php';
 date_default_timezone_set('Asia/Bangkok');
 $current_time = date('Y-m-d H:i:s');
 
-// 1. ดึงข้อมูลสรุปเหรียญ
+// ดึงข้อมูลสรุปเหรียญ
 try {
     $sql_scores = "SELECT t.id, t.team_name, t.team_color,
             SUM(CASE WHEN r.medal = 'ทอง' THEN 1 ELSE 0 END) as gold_count,
@@ -19,7 +19,7 @@ try {
     $teams_dashboard = $pdo->query($sql_scores)->fetchAll();
 } catch (\PDOException $e) { $teams_dashboard = []; }
 
-// 2. ดึงข้อมูลรายการแข่งขัน
+// ดึงข้อมูลรายการแข่งขัน (ส่วนที่หายไป)
 $sql_matches = "SELECT m.*, c.category_name, COUNT(r.id) as is_finished FROM matches m 
                 LEFT JOIN sport_categories c ON m.category_id = c.id 
                 LEFT JOIN match_results r ON m.id = r.match_id
@@ -39,7 +39,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SportsDay Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -49,6 +48,8 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
         .ios-card { background: #ffffff; border-radius: 16px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .menu-card { transition: transform 0.2s; cursor: pointer; }
         .menu-card:hover { transform: translateY(-2px); }
+        /* ปรับระยะห่าง Card ฝั่งขวาให้ชัดเจน */
+        .right-menu-container { display: flex; flex-direction: column; gap: 16px; }
     </style>
 </head>
 <body>
@@ -82,7 +83,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
         </div>
 
         <div class="col-lg-5">
-            <div class="d-flex flex-column gap-3">
+            <div class="right-menu-container">
                 <div class="card ios-card menu-card border-0" onclick="location.href='manage_scores.php'">
                     <div class="card-body d-flex align-items-center p-3">
                         <div class="bg-warning bg-opacity-10 text-warning rounded-4 p-3 me-3"><i class="fa-solid fa-star fa-lg"></i></div>
@@ -108,7 +109,7 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
             </div>
         </div>
 
-        <div class="col-12 mt-2">
+        <div class="col-12">
             <div class="card ios-card p-4">
                 <h5 class="mb-3 fw-bold"><i class="fa-solid fa-calendar-days text-primary me-2"></i> รายการแข่งขัน</h5>
                 <div class="table-responsive">
