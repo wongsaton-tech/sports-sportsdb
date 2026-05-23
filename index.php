@@ -336,8 +336,6 @@ $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'บุค
                     <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
                 </div>
                 <?php endif; ?>
-                <div class="col-lg-5">
-</div>
 
                 <?php if ($user_role == 'guest'): ?>
                     <div class="p-4 rounded-4 border border-dashed text-center text-muted small bg-white shadow-sm h-100 d-flex flex-column align-items-center justify-content-center">
