@@ -1,6 +1,12 @@
 <?php
 require_once 'db.php';
-require_once 'check_auth.php';
+// แก้ไขบรรทัดเรียกไฟล์ check_auth.php เป็นแบบนี้เพื่อทดสอบ
+if (file_exists('check_auth.php')) {
+    require_once 'check_auth.php';
+} else {
+    die("ไม่พบไฟล์ check_auth.php กรุณาตรวจสอบว่าไฟล์อยู่ในโฟลเดอร์เดียวกันหรือไม่");
+}
+
 // 🔒 ล็อกความปลอดภัยสูงสุด: เฉพาะระดับ admin เท่านั้นที่มีสิทธิ์เข้าหน้านี้ได้
 checkRole(['admin']);
 
