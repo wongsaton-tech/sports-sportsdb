@@ -195,35 +195,26 @@ $is_logged_in = isset($_SESSION['user_id']);
 
     <div class="row g-4 mb-4">
         <!-- LEFT: บอร์ดสรุปเหรียญรางวัล -->
-<div class="col-lg-7">
-    <div class="card ios-card p-2 h-100">
-        <div class="card-body">
-            <h5 class="fw-bold mb-3">
-                <i class="fa-solid fa-award me-2 text-primary"></i>
-                บอร์ดสรุปเหรียญรางวัล
-            </h5>
-            
-            <?php if (empty($teams_dashboard)): ?>
-                <div class="text-center text-muted py-5">
-                    ยังไม่มีข้อมูลทีมสี กรุณาเพิ่มข้อมูลทีมก่อน
-                </div>
-            <?php else: ?>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr class="text-muted small">
-                                <th class="text-center">อันดับ</th>
-                                <th>ชื่อทีม</th>
-                                <th class="text-center">🥇 ทอง</th>
-                                <th class="text-center">🥈 เงิน</th>
-                                <th class="text-center">🥉 ทองแดง</th>
-                                <th class="text-center fw-bold">คะแนนรวม</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($teams_dashboard as $index => $team): 
-                                $is_leader = $index === 0 && $team['total_points'] > 0;
-                            ?>
+        <div class="col-lg-7">
+            <div class="card ios-card p-2 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-award me-2 text-primary"></i> บอร์ดสรุปเหรียญรางวัล</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="text-center">อันดับ</th>
+                                    <th>ชื่อทีม</th>
+                                    <th class="text-center">🥇</th>
+                                    <th class="text-center">🥈</th>
+                                    <th class="text-center">🥉</th>
+                                    <th class="text-center fw-bold">คะแนนรวม</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($teams_dashboard as $index => $team): 
+                                    $is_leader = $index === 0 && $team['total_points'] > 0;
+                                ?>
                                 <tr class="<?php echo $is_leader ? 'table-warning' : ''; ?>">
                                     <td class="text-center">
                                         <div class="rank-badge mx-auto <?php echo $is_leader ? 'bg-warning text-dark' : 'bg-secondary bg-opacity-10 text-dark'; ?>">
@@ -231,42 +222,24 @@ $is_logged_in = isset($_SESSION['user_id']);
                                         </div>
                                     </td>
                                     <td class="fw-bold">
-                                        <span class="d-inline-block me-2" 
-                                              style="background-color: <?php echo htmlspecialchars($team['team_color']); ?>; 
-                                                     width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd;">
-                                        </span>
+                                        <span class="d-inline-block me-2" style="background-color: <?php echo htmlspecialchars($team['team_color']); ?>; width:18px; height:18px; border-radius:50%; border:2px solid #fff;"></span>
                                         <?php echo htmlspecialchars($team['team_name']); ?>
-                                        <?php if ($is_leader): ?>
-                                            <i class="fa-solid fa-trophy text-warning ms-2"></i>
-                                        <?php endif; ?>
+                                        <?php if($is_leader): ?><i class="fa-solid fa-trophy text-warning ms-2"></i><?php endif; ?>
                                     </td>
                                     <td class="text-center text-warning fw-bold"><?php echo $team['gold_count']; ?></td>
                                     <td class="text-center text-secondary fw-bold"><?php echo $team['silver_count']; ?></td>
                                     <td class="text-center text-danger fw-bold"><?php echo $team['bronze_count']; ?></td>
-                                    <td class="text-center fw-bold text-primary fs-5">
-                                        <?php echo $team['total_points']; ?>
-                                    </td>
+                                    <td class="text-center fw-bold text-primary fs-5"><?php echo $team['total_points']; ?></td>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <?php if (!empty($teams_dashboard)): ?>
-                    <div class="mt-3 text-end small text-muted">
-                        ทีมที่มียอดคะแนนรวมสูงสุด: 
-                        <strong class="text-warning">
-                            <?php echo htmlspecialchars($teams_dashboard[0]['team_name']); ?> 
-                            (<?php echo $teams_dashboard[0]['total_points']; ?> คะแนน)
-                        </strong>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                <?php endif; ?>
-            <?php endif; ?>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
 
-        <!-- RIGHT: Login หรือ เมนู -->
+        <!-- RIGHT: Login / เมนู -->
         <div class="col-lg-5">
             <div class="d-flex flex-column gap-3">
                 <?php if (!$is_logged_in): ?>
@@ -277,11 +250,9 @@ $is_logged_in = isset($_SESSION['user_id']);
                             <h5 class="fw-bold">เข้าสู่ระบบสำหรับเจ้าหน้าที่</h5>
                             <p class="text-muted small">กรุณาล็อกอินเพื่อจัดการระบบ</p>
                         </div>
-
                         <?php if(!empty($login_error)): ?>
-                            <div class="alert alert-danger border-0 rounded-3"><?php echo $login_error; ?></div>
+                            <div class="alert alert-danger border-0"><?php echo $login_error; ?></div>
                         <?php endif; ?>
-
                         <form method="POST" action="index.php">
                             <div class="mb-3">
                                 <label class="form-label small text-muted fw-bold">ชื่อผู้ใช้งาน</label>
@@ -297,12 +268,12 @@ $is_logged_in = isset($_SESSION['user_id']);
                         </form>
                     </div>
                 <?php else: ?>
-                    <!-- เมนูสำหรับผู้ล็อกอินแล้ว -->
+                    <!-- เมนูสำหรับผู้ล็อกอิน -->
                     <?php if ($user_role === 'admin'): ?>
                         <div class="card ios-card menu-card border-0" onclick="location.href='manage_users.php'">
                             <div class="card-body d-flex align-items-center p-3">
                                 <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-3 me-3"><i class="fa-solid fa-users-gear fa-lg"></i></div>
-                                <div><h6 class="mb-0 fw-bold">จัดการผู้ใช้งานระบบ</h6><p class="text-muted small mb-0">เพิ่ม/แก้ไข/ลบ บัญชี</p></div>
+                                <div><h6 class="mb-0 fw-bold">จัดการผู้ใช้งานระบบ</h6><p class="text-muted small mb-0">เพิ่ม/แก้ไข/ลบบัญชี</p></div>
                                 <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
                             </div>
                         </div>
@@ -356,7 +327,6 @@ $is_logged_in = isset($_SESSION['user_id']);
                         <?php endif; ?>
                     <?php endif; ?>
 
-                    <!-- แก้ไขข้อมูลส่วนตัว -->
                     <div class="card ios-card menu-card border-0" onclick="location.href='edit_profile.php'">
                         <div class="card-body d-flex align-items-center p-3">
                             <div class="bg-info bg-opacity-10 text-info rounded-4 p-3 me-3"><i class="fa-solid fa-user-pen fa-lg"></i></div>
@@ -365,6 +335,90 @@ $is_logged_in = isset($_SESSION['user_id']);
                         </div>
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- สรุปผลการแข่งขันตามประเภทกีฬา -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card ios-card p-2">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-4">
+                        <i class="fa-solid fa-trophy text-success me-2"></i>
+                        สรุปผลการแข่งขันตามประเภทกีฬา
+                    </h5>
+
+                    <?php
+                    $sql_category = "
+                        SELECT 
+                            c.category_name,
+                            m.sport_name,
+                            m.gender_type,
+                            t.team_name,
+                            t.team_color,
+                            r.medal,
+                            r.points
+                        FROM match_results r
+                        JOIN matches m ON r.match_id = m.id
+                        JOIN sport_categories c ON m.category_id = c.id
+                        JOIN teams t ON r.team_id = t.id
+                        WHERE r.medal != 'ไม่มี'
+                        ORDER BY c.category_name, m.match_datetime DESC, r.points DESC";
+                    $results = $pdo->query($sql_category)->fetchAll();
+                    $grouped = [];
+                    foreach ($results as $row) {
+                        $cat = $row['category_name'];
+                        if (!isset($grouped[$cat])) $grouped[$cat] = [];
+                        $grouped[$cat][] = $row;
+                    }
+                    ?>
+
+                    <?php if (empty($grouped)): ?>
+                        <div class="text-center text-muted py-5">
+                            ยังไม่มีผลการแข่งขันที่บันทึก<br>
+                            <small>เมื่อบันทึกผลตามประเภทกีฬา จะแสดงผลที่นี่</small>
+                        </div>
+                    <?php else: ?>
+                        <div class="row g-4">
+                            <?php foreach ($grouped as $cat_name => $items): ?>
+                                <div class="col-lg-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-header bg-light py-3">
+                                            <h6 class="mb-0 fw-bold">🏷️ <?php echo htmlspecialchars($cat_name); ?></h6>
+                                        </div>
+                                        <div class="card-body p-3">
+                                            <?php 
+                                            $shown = [];
+                                            foreach ($items as $item): 
+                                                $key = $item['sport_name'] . ' (' . $item['gender_type'] . ')';
+                                                if (in_array($key, $shown)) continue;
+                                                $shown[] = $key;
+                                            ?>
+                                                <div class="mb-3 pb-2 border-bottom">
+                                                    <div class="fw-bold small mb-2"><?php echo htmlspecialchars($key); ?></div>
+                                                    <?php foreach ($items as $res): 
+                                                        if ($res['sport_name'].' ('.$res['gender_type'].')' !== $key) continue;
+                                                    ?>
+                                                        <div class="d-flex justify-content-between align-items-center py-1">
+                                                            <span class="badge px-3 py-1" style="background-color: <?php echo htmlspecialchars($res['team_color']); ?>; color:white;">
+                                                                <?php echo htmlspecialchars($res['team_name']); ?>
+                                                            </span>
+                                                            <span>
+                                                                <?php echo ($res['medal']=='ทอง')?'🥇':(($res['medal']=='เงิน')?'🥈':'🥉'); ?>
+                                                                <small class="text-muted">(<?php echo $res['points']; ?> คะแนน)</small>
+                                                            </span>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
