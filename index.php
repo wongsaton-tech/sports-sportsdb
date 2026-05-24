@@ -152,9 +152,6 @@ $is_logged_in = isset($_SESSION['user_id']);
     <div class="container">
         <a class="navbar-brand fw-bold text-warning" href="index.php">🏆 SportsDay Center</a>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link active" href="index.php"><i class="fa-solid fa-chart-line me-1"></i> แดชบอร์ด</a></li>
-            </ul>
             <ul class="navbar-nav ms-auto">
                 <?php if ($is_logged_in): ?>
                     <li class="nav-item">
